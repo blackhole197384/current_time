@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>香港天氣時鐘</title>
+
+<style>
+
+:root{
+    --text:#fff;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html,body{
+
+    width:100%;
+    height:100%;
+
+    overflow:hidden;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        sans-serif;
+
+    color:var(--text);
+}
+
+/* ===================
+   背景層
+=================== */
+
+body{
+
+    position:relative;
+
+    background:
+    linear-gradient(
+        180deg,
+        #021228,
+        #051f42
+    );
+
+    transition:
+        background 1.5s ease;
+}
+
+#weatherBackground{
+
+    position:absolute;
+
+    inset:0;
+
+    overflow:hidden;
+
+    z-index:0;
+}
+
+/* ===================
+   Overlay
+=================== */
+
+.overlay{
+
+    position:absolute;
+
+    inset:0;
+
+    background:
+    rgba(
+        0,
+        0,
+        0,
+        0.35
+    );
+
+    z-index:1;
+}
+
+/* ===================
+   Main UI
+=================== */
+
+.dashboard{
+
+    position:relative;
+
+    z-index:10;
+
+    height:100vh;
+
+    display:grid;
+
+    grid-template-rows:
+        50%
+        50%;
+}
+
+/* ===================
+   TOP
+=================== */
+
+.clock-panel{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:center;
+}
+
+.clock{
+
+    font-weight:900;
+
+    font-size:
+    clamp(
+        8rem,
+        18vw,
+        16rem
+    );
+
+    line-height:1;
+}
+
+.date{
+
+    margin-top:1rem;
+
+    font-size:
+    clamp(
+        1.3rem,
+        2vw,
+        2rem
+    );
+
+    color:
+    rgba(
+        255,
+        255,
+        255,
+        .85
+    );
+}
+
+/* ===================
+   BOTTOM
+=================== */
+
+.weather-panel{
+
+    display:grid;
+
+    grid-template-columns:
+        40%
+        60%;
+}
+
+.current-weather{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:center;
+
+    border-right:
+        2px solid
+        rgba(
+            255,
+            255,
+            255,
+            .15
+        );
+}
+
+.weather-icon{
+
+    font-size:5rem;
+}
+
+.temperature{
+
+    font-size:6rem;
+
+    font-weight:800;
+}
+
+.humidity{
+
+    font-size:2rem;
+}
+
+.condition{
+
+    margin-top:10px;
+
+    font-size:1.2rem;
+}
+
+.minmax{
+
+    margin-top:10px;
+
+    color:#ddd;
+}
+
+.rain-panel{
+
+    padding:40px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:center;
+}
+
+.rain-title{
+
+    font-size:2rem;
+
+    margin-bottom:30px;
+
+    font-weight:600;
+}
+
+.rain-row{
+
+    display:grid;
+
+    grid-template-columns:
+        100px
+        1fr
+        80px;
+
+    gap:10px;
+
+    align-items:center;
+
+    margin-bottom:20px;
+
+    font-size:1.8rem;
+}
+
+.bar{
+
+    height:24px;
+
+    border-radius:999px;
+
+    background:
+    rgba(
+        255,
+        255,
+        255,
+        .15
+    );
+
+    overflow:hidden;
+}
+
+.fill{
+
+    height:100%;
+
+    background:
+    linear-gradient(
+        90deg,
+        #36a8ff,
+        #77deff
+    );
+}
+
+.footer{
+
+    position:absolute;
+
+    right:20px;
+
+    bottom:10px;
+}
+
+/* ===================
+   Moving Clouds
+=================== */
+
+.cloud{
+
+    position:absolute;
+
+    background:
+    rgba(
+        255,
+        255,
+        255,
+        .15
+    );
+
+    width:350px;
+
+    height:120px;
+
+    border-radius:100px;
+
+    filter:blur(12px);
+
+    animation:
+    cloudMove
+    60s
+    linear
+    infinite;
+}
+
+.cloud:nth-child(1){
+
+    top:10%;
+}
+
+.cloud:nth-child(2){
+
+    top:35%;
+
+    animation-duration:90s;
+}
+
+@keyframes cloudMove{
+
+    from{
+        transform:
+        translateX(-400px);
+    }
+
+    to{
+        transform:
+        translateX(calc(100vw + 400px));
+    }
+}
+
+/* ===================
+   Rain
+=================== */
+
+.raindrop{
+
+    position:absolute;
+
+    width:2px;
+
+    height:22px;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .35
+        );
+
+    animation:
+        rain
+        linear
+        infinite;
+}
+
+@keyframes rain{
+
+    from{
+        transform:
+        translateY(-50px);
+    }
+
+    to{
+        transform:
+        translateY(100vh);
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="weatherBackground"></div>
+
+<div class="overlay"></div>
+
+<div class="dashboard">
+
+    <section class="clock-panel">
+
+        <div id="time" class="clock"></div>
+
+        <div id="date" class="date"></div>
+
+    </section>
+
+    <section class="weather-panel">
+
+        <div class="current-weather">
+
+            <div class="weather-icon">
+                🌧️
+            </div>
+
+            <div class="temperature">
+                25.5°C
+            </div>
+
+            <div class="humidity">
+                RH 79%
+            </div>
+
+            <div class="minmax">
+                ↑29°C ↓25°C
+            </div>
+
+            <div class="condition">
+                多雲有驟雨
+            </div>
+
+        </div>
+
+        <div class="rain-panel">
+
+            <div class="rain-title">
+                未來兩小時降雨預測
+            </div>
+
+            <div class="rain-row">
+                <span>現在</span>
+                <div class="bar">
+                    <div class="fill" style="width:80%"></div>
+                </div>
+                <span>80%</span>
+            </div>
+
+            <div class="rain-row">
+                <span>+30m</span>
+                <div class="bar">
+                    <div class="fill" style="width:60%"></div>
+                </div>
+                <span>60%</span>
+            </div>
+
+            <div class="rain-row">
+                <span>+60m</span>
+                <div class="bar">
+                    <div class="fill" style="width:30%"></div>
+                </div>
+                <span>30%</span>
+            </div>
+
+            <div class="rain-row">
+                <span>+90m</span>
+                <div class="bar">
+                    <div class="fill" style="width:10%"></div>
+                </div>
+                <span>10%</span>
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+<script>
+
+/* ===================
+ clock
+=================== */
+
+function updateClock(){
+
+    const now=new Date();
+
+    document.getElementById("time").textContent=
+        now.toLocaleTimeString(
+            "en-GB",
+            {
+                hour:"2-digit",
+                minute:"2-digit"
+            }
+        );
+
+    document.getElementById("date").textContent=
+        now.toLocaleDateString(
+            "zh-HK",
+            {
+                year:"numeric",
+                month:"long",
+                day:"numeric",
+                weekday:"long"
+            }
+        );
+}
+
+updateClock();
+
+setInterval(
+    updateClock,
+    60000
+);
+
+/* ===================
+ background
+=================== */
+
+function setWeatherBackground(type){
+
+    const bg=
+        document.getElementById(
+            "weatherBackground"
+        );
+
+    bg.innerHTML="";
+
+    switch(type){
+
+        case "sunny":
+
+            document.body.style.background=
+            "linear-gradient(180deg,#4bbcff,#1f7fff)";
+
+            break;
+
+        case "cloudy":
+
+            document.body.style.background=
+            "linear-gradient(180deg,#49637a,#193246)";
+
+            createClouds();
+
+            break;
+
+        case "rain":
+
+            document.body.style.background=
+            "linear-gradient(180deg,#243242,#09131f)";
+
+            createClouds();
+
+            createRain();
+
+            break;
+
+        case "thunder":
+
+            document.body.style.background=
+            "linear-gradient(180deg,#101010,#000000)";
+
+            createClouds();
+
+            createRain();
+
+            startLightning();
+
+            break;
+
+        case "night":
+
+            document.body.style.background=
+            "linear-gradient(180deg,#021228,#000814)";
+
+            break;
+    }
+}
+
+function createClouds(){
+
+    const bg=
+        document.getElementById(
+            "weatherBackground"
+        );
+
+    for(let i=0;i<3;i++){
+
+        const cloud=
+            document.createElement(
+                "div"
+            );
+
+        cloud.className="cloud";
+
+        cloud.style.top=
+            (10+i*20)+"%";
+
+        bg.appendChild(cloud);
+
+    }
+}
+
+function createRain(){
+
+    const bg=
+        document.getElementById(
+            "weatherBackground"
+        );
+
+    for(let i=0;i<100;i++){
+
+        const drop=
+            document.createElement(
+                "div"
+            );
+
+        drop.className=
+            "raindrop";
+
+        drop.style.left=
+            Math.random()*100+"vw";
+
+        drop.style.animationDuration=
+            (0.8+Math.random())+"s";
+
+        bg.appendChild(drop);
+
+    }
+}
+
+function startLightning(){
+
+    setInterval(()=>{
+
+        document.body.style.filter=
+            "brightness(180%)";
+
+        setTimeout(()=>{
+
+            document.body.style.filter=
+                "brightness(100%)";
+
+        },80);
+
+    },15000);
+}
+
+/*
+  sunny
+  cloudy
+  rain
+  thunder
+  night
+*/
+
+setWeatherBackground("rain");
+
+</script>
+
+</body>
+</html>
