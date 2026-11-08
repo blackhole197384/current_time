@@ -124,11 +124,46 @@ const miniFont = {
 
 const hourColors = ['#FF0000','#FF7F00','#FFD700','#7FFF00','#00FF00','#00FF7F','#00FFFF','#007FFF','#0000FF','#7F00FF','#FF00FF','#FF007F'];
 
+// ==========================================
+// 3. 吃豆人與精靈圖標 (已修正為朝左吃豆)
+// ==========================================
 const pacmanMini = [
-    ['001111000','011111100','111111110','111111111','111110000','111111111','111111110','011111100','001111000'],
-    ['001111000','011111100','111111110','111111111','111111111','111111111','111111110','011111100','001111000']
+    [ // 張嘴朝左 (Facing Left - Mouth Open)
+        '000111100',
+        '001111110',
+        '011111111',
+        '001111111',
+        '000001111',
+        '001111111',
+        '011111111',
+        '001111110',
+        '000111100'
+    ],
+    [ // 閉嘴 (Mouth Closed)
+        '000111100',
+        '001111110',
+        '011111111',
+        '111111111',
+        '111111111',
+        '111111111',
+        '011111111',
+        '001111110',
+        '000111100'
+    ]
 ];
-const ghostMini = ['001111100','011111110','112212211','113213211','111111111','111111111','111111111','111111111','101010101'];
+
+// 幽靈朝左盯著吃豆人
+const ghostMini = [
+    '001111100',
+    '011111110',
+    '112212211',
+    '113213211',
+    '111111111',
+    '111111111',
+    '111111111',
+    '111111111',
+    '101010101'
+];
 
 const iconSunny = ['00000100000','00100100100','00010001000','01001110010','00011111000','11011111011','00011111000','01001110010','00010001000','00100100100','00000100000'];
 const iconCloudy = ['00000000000','00000222000','00002222200','00022222220','00222222220','02222222222','02222222222','00222222200','00000000000','00000000000','00000000000'];
@@ -136,7 +171,7 @@ const iconPartlyCloudy = ['00000100000','00100101000','00011110000','01011111000
 const iconRain = ['00002220000','00022222000','00222222220','02222222222','02222222222','00222222200','00030030000','00300300300','00030030000','00300003000','00000000000'];
 
 // ==========================================
-// 3. 12px 點陣光柵化渲染器 (防裁切 + 自動垂直對齊)
+// 4. 12px 點陣光柵化渲染器 (防裁切 + 自動垂直對齊)
 // ==========================================
 const textMatrixCache = {};
 
@@ -150,7 +185,7 @@ function rasterizeTextToMatrix(key, text) {
     octx.font = fontStr;
     const textWidth = Math.ceil(octx.measureText(text).width);
     
-    // 預留足夠垂直畫布高度 (20px)，防止被字體內建行高截斷底部
+    // 預留 20px 垂直緩衝，徹底防止字體被內建行高裁切底部
     off.width = textWidth + 8;
     off.height = 20; 
     
@@ -164,7 +199,7 @@ function rasterizeTextToMatrix(key, text) {
     
     const imgData = octx.getImageData(0, 0, off.width, off.height);
     
-    // 自動掃描實際文字繪製的起始 Y 軸
+    // 自動掃描實際文字起始 Y 軸
     let firstActiveY = -1;
     for (let y = 0; y < off.height; y++) {
         for (let x = 0; x < off.width; x++) {
@@ -177,7 +212,7 @@ function rasterizeTextToMatrix(key, text) {
     }
     if (firstActiveY === -1) firstActiveY = 2;
 
-    const TARGET_HEIGHT = 12; // 12 點陣高度
+    const TARGET_HEIGHT = 12;
     const dots = [];
     for (let x = 0; x < off.width; x++) {
         dots[x] = [];
@@ -207,7 +242,7 @@ if (document.fonts) {
 }
 
 // ==========================================
-// 4. 即時資料同步
+// 5. 即時資料同步
 // ==========================================
 let weatherTemp = "--";
 let weatherHum = "--";
@@ -237,266 +272,4 @@ async function fetchWeather() {
         
         const omRes = await fetch("https://api.open-meteo.com/v1/forecast?latitude=22.296&longitude=114.271&current=relative_humidity_2m&timezone=Asia%2FHong_Kong");
         const omData = await omRes.json();
-        if (omData?.current?.relative_humidity_2m !== undefined) {
-            weatherHum = omData.current.relative_humidity_2m;
-        } else if (hkoData?.humidity?.data) {
-            weatherHum = hkoData.humidity.data[0].value;
-        }
-    } catch(e) {}
-}
-
-async function fetchMTRSchedule() {
-    try {
-        const res = await fetch("https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TKL&sta=LHP");
-        const json = await res.json();
-        
-        if (json.status === 1 && json.data && json.data["TKL-LHP"]) {
-            const lhp = json.data["TKL-LHP"];
-            let rawList = (lhp.DOWN || []).concat(lhp.UP || []);
-            let departures = rawList.filter(t => t.dest !== 'LHP');
-            
-            if (departures.length > 0) {
-                const destNames = { 'NOP': '北角', 'TIK': '調景嶺', 'POA': '寶琳', 'TKO': '將軍澳' };
-                const next3 = departures.slice(0, 3);
-                
-                const parts = next3.map(t => {
-                    const dest = destNames[t.dest] || t.dest || '北角';
-                    let mins = t.ttnt;
-                    if (mins === undefined || mins === null || isNaN(mins)) {
-                        const safeTimeStr = (t.time || '').replace(/-/g, '/');
-                        mins = Math.max(0, Math.round((new Date(safeTimeStr) - new Date()) / 60000));
-                    } else {
-                        mins = parseInt(mins, 10);
-                    }
-                    const minStr = (mins === 0) ? "即將開出" : `${mins}分`;
-                    return `${dest} ${minStr}`;
-                });
-                
-                mtrRawText = "康城開出: " + parts.join(" · ");
-            } else {
-                mtrRawText = "康城站: 列車服務暫停或已過尾班車";
-            }
-            rasterizeTextToMatrix('mtr', mtrRawText);
-        }
-    } catch(e) {}
-}
-
-async function fetchHKNews() {
-    let collectedHeadlines = [];
-    for (const src of NEWS_SOURCES) {
-        try {
-            const rssUrl = encodeURIComponent(src.url);
-            const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
-            const data = await res.json();
-            
-            if (data.status === 'ok' && data.items && data.items.length > 0) {
-                for (let i = 0; i < Math.min(2, data.items.length); i++) {
-                    let title = data.items[i].title || "";
-                    title = title.replace(/<[^>]*>?/gm, '').trim();
-                    if (title) {
-                        let formatted = `${src.label}: ${title}`;
-                        if (formatted.length > 50) formatted = formatted.substring(0, 49) + "…";
-                        collectedHeadlines.push(formatted);
-                    }
-                }
-            }
-        } catch(e) {}
-    }
-    
-    if (collectedHeadlines.length > 0) {
-        newsHeadlinePool = collectedHeadlines;
-        renderActiveHeadline();
-    }
-}
-
-function renderActiveHeadline() {
-    if (newsHeadlinePool.length === 0) return;
-    const headline = newsHeadlinePool[activeHeadlineIndex % newsHeadlinePool.length];
-    rasterizeTextToMatrix('news', headline);
-}
-
-fetchWeather();
-fetchMTRSchedule();
-fetchHKNews();
-
-setInterval(fetchWeather, 5 * 60 * 1000);
-setInterval(fetchMTRSchedule, 30 * 1000);
-setInterval(fetchHKNews, 8 * 60 * 1000);
-
-function getIconSprite() {
-    if (weatherIconCode >= 50 && weatherIconCode <= 52) return iconPartlyCloudy;
-    if (weatherIconCode >= 53 && weatherIconCode <= 54) return iconSunny;
-    if (weatherIconCode >= 60 && weatherIconCode <= 61) return iconCloudy;
-    if (weatherIconCode >= 62 && weatherIconCode <= 65) return iconRain;
-    return iconPartlyCloudy;
-}
-
-// ==========================================
-// 5. 點陣繪圖方法
-// ==========================================
-function drawLitDot(col, row, color) {
-    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
-    let x = col * CELL_SIZE + CELL_SIZE / 2;
-    let y = row * CELL_SIZE + CELL_SIZE / 2;
-    ctx.beginPath();
-    ctx.arc(x, y, DOT_SIZE / 2, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-}
-
-function drawSprite(sprite, startX, startY, colorMap) {
-    for (let r = 0; r < sprite.length; r++) {
-        for (let c = 0; c < sprite[r].length; c++) {
-            if (sprite[r][c] !== '0') drawLitDot(Math.floor(startX + c), startY + r, colorMap[sprite[r][c]] || '#FFFFFF');
-        }
-    }
-}
-
-function drawHugeText(text, startX, startY, color) {
-    let currX = startX;
-    for (let i = 0; i < text.length; i++) {
-        let charData = hugeFont[text[i]];
-        if (!charData) { currX += 4; continue; }
-        for (let r = 0; r < charData.length; r++) {
-            for (let c = 0; c < charData[r].length; c++) {
-                if (charData[r][c] === '1') drawLitDot(currX + c, startY + r, color);
-            }
-        }
-        currX += charData[0].length + 2;
-    }
-}
-
-function drawMiniText(text, startX, startY, color) {
-    let currX = startX;
-    for (let i = 0; i < text.length; i++) {
-        let sprite = miniFont[text[i]] || miniFont[' '];
-        for (let r = 0; r < sprite.length; r++) {
-            for (let c = 0; c < sprite[r].length; c++) {
-                if (sprite[r][c] === '1') drawLitDot(currX + c, startY + r, color);
-            }
-        }
-        currX += sprite[0].length + 1;
-    }
-    return currX;
-}
-
-function drawRasterText(key, scrollX, startY, color) {
-    const cached = textMatrixCache[key];
-    if (!cached) return;
-    
-    const startCol = Math.floor(scrollX);
-    for (let c = 0; c < COLS; c++) {
-        let srcX = c - startCol;
-        if (srcX >= 0 && srcX < cached.width) {
-            for (let r = 0; r < cached.height; r++) {
-                if (cached.dots[srcX][r] === 1) drawLitDot(c, startY + r, color);
-            }
-        }
-    }
-}
-
-// ==========================================
-// 6. 主渲染迴圈
-// ==========================================
-const DURATION_PACMAN  = 20; 
-const DURATION_WEATHER = 60;
-const DURATION_MTR     = 25;
-const DURATION_NEWS    = 35;
-const TOTAL_CYCLE = DURATION_PACMAN + DURATION_WEATHER + DURATION_MTR + DURATION_NEWS; 
-
-let prevCyclePhase = -1;
-
-function animate() {
-    ctx.drawImage(backplate, 0, 0);
-    
-    const now = new Date();
-    const currentColor = hourColors[now.getHours() % 12];
-    canvas.style.filter = `drop-shadow(0 0 12px ${currentColor}45)`;
-    
-    // 頂部日期 (第 2 至 6 列)
-    const month = (now.getMonth() + 1 < 10 ? '0' : '') + (now.getMonth() + 1);
-    const day = (now.getDate() < 10 ? '0' : '') + now.getDate();
-    const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    const dateStr = `${month}.${day}  ${weekDays[now.getDay()]}`;
-    
-    let dateWidth = 0;
-    for(let c of dateStr) dateWidth += (miniFont[c]||miniFont[' '])[0].length + 1;
-    dateWidth--;
-    drawMiniText(dateStr, Math.floor((COLS - dateWidth) / 2), 2, '#888888');
-    
-    // 超大時鐘 (第 10 至 26 列)
-    const timeStr = (now.getHours() % 12 || 12) + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
-    let totalClockWidth = 0;
-    for (let char of timeStr) if (hugeFont[char]) totalClockWidth += hugeFont[char][0].length + 2;
-    totalClockWidth -= 2;
-    drawHugeText(timeStr, Math.floor((COLS - totalClockWidth) / 2), 10, currentColor);
-    
-    // 下半部 4 階段輪播 (Rows 28 至 47)
-    const cycleTime = (Date.now() / 1000) % TOTAL_CYCLE;
-    let currentPhase = 0;
-    
-    if (cycleTime < DURATION_PACMAN) {
-        currentPhase = 1;
-        const t = cycleTime;
-        let pacmanX = 64 - (t * 4.6);
-        let mouth = Math.floor(t * 4) % 2 === 0 ? 0 : 1;
-        
-        for (let dotC = 2; dotC < Math.round(pacmanX); dotC += 4) {
-            drawLitDot(dotC, 38, '#555555');
-        }
-        drawSprite(pacmanMini[mouth], Math.round(pacmanX), 34, { '1': '#FFD700' });
-        drawSprite(ghostMini, Math.round(pacmanX + 14), 34, { '1': '#FF69B4', '2': '#FFFFFF', '3': '#0026FF' });
-        
-    } else if (cycleTime < DURATION_PACMAN + DURATION_WEATHER) {
-        currentPhase = 2;
-        const tStr = isNaN(weatherTemp) ? "--°C" : Math.round(weatherTemp) + "°C";
-        const hStr = isNaN(weatherHum) ? "--%" : Math.round(weatherHum) + "%";
-        
-        let tWidth = 0; for(let c of tStr) tWidth += (miniFont[c]||miniFont[' '])[0].length + 1; tWidth--;
-        let hWidth = 0; for(let c of hStr) hWidth += (miniFont[c]||miniFont[' '])[0].length + 1; hWidth--;
-        
-        const GAP = 5;
-        let startX = Math.floor((COLS - (11 + GAP + tWidth + GAP + hWidth)) / 2);
-        
-        drawSprite(getIconSprite(), startX, 33, { '1': '#FFD700', '2': '#FFFFFF', '3': '#00BFFF' });
-        startX += 11 + GAP;
-        startX = drawMiniText(tStr, startX, 36, '#FFFFFF');
-        startX += GAP;
-        drawMiniText(hStr, startX, 36, '#00BFFF');
-        
-    } else if (cycleTime < DURATION_PACMAN + DURATION_WEATHER + DURATION_MTR) {
-        currentPhase = 3;
-        const phaseElapsed = cycleTime - (DURATION_PACMAN + DURATION_WEATHER);
-        const cached = textMatrixCache['mtr'];
-        const textW = cached ? cached.width : 220;
-        const progress = phaseElapsed / DURATION_MTR;
-        const scrollX = 64 - progress * (textW + 64);
-        
-        // 12 點陣置中排列於第 33 列 (佔用 33 至 44 列，底部預留 3 行完整留白)
-        drawRasterText('mtr', scrollX, 33, '#00F0FF');
-        
-    } else {
-        currentPhase = 4;
-        if (prevCyclePhase !== 4 && newsHeadlinePool.length > 0) {
-            activeHeadlineIndex = (activeHeadlineIndex + 1) % newsHeadlinePool.length;
-            renderActiveHeadline();
-        }
-        
-        const phaseElapsed = cycleTime - (DURATION_PACMAN + DURATION_WEATHER + DURATION_MTR);
-        const cached = textMatrixCache['news'];
-        const textW = cached ? cached.width : 320;
-        const progress = phaseElapsed / DURATION_NEWS;
-        const scrollX = 64 - progress * (textW + 64);
-        
-        // 12 點陣置中排列於第 33 列 (佔用 33 至 44 列)
-        drawRasterText('news', scrollX, 33, '#FFB703');
-    }
-    
-    prevCyclePhase = currentPhase;
-    requestAnimationFrame(animate);
-}
-
-animate();
-</script>
-</body>
-</html>
+        if (omData?.current?.relative_humidity
