@@ -5,21 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Tidbyt Style Matrix Panel 64x48</title>
+<title>Modern Flip Clock & Smart Dashboard</title>
 
 <style>
-    /* 點陣字型聲明 (同時兼容 12px 與 16px 檔案，若未就緒則無縫使用系統字) */
-    @font-face {
-        font-family: 'ArkPixel12';
-        src: 
-            url('ark-pixel-12px-monospaced-zh_hk.otf.woff2') format('woff2'),
-            url('ark-pixel-12px-monospaced-zh_hk.ttf.woff2') format('woff2'),
-            url('ark-pixel-16px-proportional-zh_hk.ttf.woff2') format('woff2');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap; /* 絕不等待阻礙渲染 */
-    }
-
     * {
         margin: 0;
         padding: 0;
@@ -29,522 +17,731 @@
     html, body {
         width: 100%;
         height: 100%;
-        background-color: #000000;
+        background: radial-gradient(circle at 60% 40%, #00709b 0%, #02466b 40%, #011b2b 100%);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang HK", "Noto Sans TC", sans-serif;
         overflow: hidden;
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 0;
-        margin: 0;
         user-select: none;
         -webkit-user-select: none;
     }
-    
-    /* 解決 Safari 尺寸崩塌的極簡穩定寫法 */
-    canvas {
-        display: block;
+
+    /* 護屏模式背景圖層 */
+    #screensaver-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-size: cover;
+        background-position: center;
+        opacity: 0;
+        transition: opacity 1.5s ease-in-out;
+        z-index: 100;
+        pointer-events: none;
+    }
+
+    /* 主儀表板容器 (iPad 4:3 比例) */
+    .dashboard-container {
+        width: 100vw;
+        height: 100vh;
+        max-width: 100%;
+        max-height: 100%;
+        aspect-ratio: 4 / 3;
+        display: flex;
+        flex-direction: column;
+        padding: 3vw;
+        transition: opacity 1s ease-in-out;
+        z-index: 10;
+        position: relative;
+    }
+
+    /* ==========================================
+       1. 上半部：翻牌時鐘 (佔 3/5 高度)
+       ========================================== */
+    .upper-part {
+        flex: 3; 
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    }
+
+    .flip-clock-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 1vw;
+        margin-bottom: 2.2vw;
+    }
+
+    .flip-card {
+        position: relative;
+        width: 16vw;
+        height: 24vw;
+        background-color: #1a2733;
+        border-radius: 1.5vw;
+        box-shadow: 0 1vw 2vw rgba(0,0,0,0.5), inset 0 0.2vw 0.5vw rgba(255,255,255,0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 20vw;
+        font-weight: 600;
+        color: #ffffff;
+        overflow: hidden;
+    }
+
+    /* 物理中縫切割線 */
+    .flip-card::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
         width: 100%;
-        height: 100%;
-        object-fit: contain;
-        filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25));
+        height: 2px;
+        background-color: #0b141d;
+        transform: translateY(-50%);
+        box-shadow: 0 1px 1px rgba(255,255,255,0.05);
+        z-index: 10;
+    }
+
+    /* 兩側鉸鏈內凹細節 */
+    .flip-card::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 1.5vw;
+        background: transparent;
+        transform: translateY(-50%);
+        border-left: 0.6vw solid #0b141d;
+        border-right: 0.6vw solid #0b141d;
+        z-index: 11;
+    }
+
+    .flip-card-inner {
+        position: relative;
+        z-index: 5;
+        margin-top: -0.5vw;
+    }
+
+    .colon {
+        font-size: 16vw;
+        font-weight: 600;
+        color: #c0e8f0;
+        margin: 0 0.5vw;
+        transform: translateY(-1vw);
+    }
+
+    /* 中文年月日與星期 */
+    .date-display {
+        position: absolute;
+        right: 4.5vw;
+        bottom: 1.5vw;
+        font-size: 1.9vw;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.82);
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .divider {
+        height: 1px;
+        width: 90%;
+        margin: 0 auto 2vw auto;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    }
+
+    /* ==========================================
+       2. 下半部：資訊輪播區 (佔 2/5 高度)
+       ========================================== */
+    .bottom-part {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 4vw;
+    }
+
+    .meta-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 2.2vw;
+        font-weight: 600;
+        color: #fca311;
+        margin-bottom: 1.5vw;
+    }
+
+    .source-tag {
+        display: flex;
+        align-items: center;
+        gap: 0.8vw;
+    }
+
+    .source-dot {
+        width: 1.2vw;
+        height: 1.2vw;
+        border-radius: 50%;
+        background-color: #fca311;
+        box-shadow: 0 0 8px rgba(252,163,17,0.5);
+        transition: background-color 0.4s ease;
+    }
+
+    /* 開獎日紅黃交替閃爍燈效 */
+    @keyframes pulse-dot {
+        0%, 100% {
+            background-color: #ff3b30;
+            box-shadow: 0 0 8px #ff3b30, 0 0 16px rgba(255, 59, 48, 0.6);
+            transform: scale(1);
+        }
+        50% {
+            background-color: #ffd60a;
+            box-shadow: 0 0 12px #ffd60a, 0 0 24px rgba(255, 214, 10, 0.8);
+            transform: scale(1.25);
+        }
+    }
+
+    .pulse-today {
+        animation: pulse-dot 1s infinite alternate !important;
+    }
+
+    .message-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6vw; 
+    }
+
+    .message-text {
+        font-size: 3vw; 
+        font-weight: 500;
+        color: #ffffff;
+        line-height: 1.35;
+        letter-spacing: 0.02em;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .message-text span.highlight {
+        color: #fca311;
+    }
+
+    .message-text.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* ==========================================
+       3. 六合彩 彩球與頭獎高亮樣式
+       ========================================== */
+    .balls-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6vw;
+        margin-top: 0.2vw;
+    }
+
+    .ms-ball {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        width: 3.8vw;
+        height: 3.8vw;
+        border-radius: 50%;
+        font-size: 2.1vw;
+        font-weight: 700;
+        color: #ffffff;
+        box-shadow: 0 0.4vw 0.8vw rgba(0, 0, 0, 0.6), inset 0 0.3vw 0.3vw rgba(255, 255, 255, 0.45);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+        vertical-align: middle;
+    }
+
+    .ms-red   { background: radial-gradient(circle at 35% 35%, #ff5252 0%, #d50000 70%, #8b0000 100%); }
+    .ms-blue  { background: radial-gradient(circle at 35% 35%, #40c4ff 0%, #0091ea 70%, #01579b 100%); }
+    .ms-green { background: radial-gradient(circle at 35% 35%, #69f0ae 0%, #00c853 70%, #00600f 100%); }
+
+    .ms-plus {
+        font-size: 2.4vw;
+        margin: 0 0.4vw;
+        color: #ffd60a;
+        font-weight: 600;
+        text-shadow: 0 0 6px rgba(255, 214, 10, 0.5);
+    }
+
+    /* 超過 3000 萬 / 金多寶的醒目呼吸紅黃提示 */
+    @keyframes pulse-glow {
+        0%, 100% {
+            color: #ff3b30;
+            text-shadow: 0 0 10px rgba(255, 59, 48, 0.8), 0 0 20px rgba(255, 59, 48, 0.4);
+        }
+        50% {
+            color: #ffd60a;
+            text-shadow: 0 0 14px rgba(255, 214, 10, 0.9), 0 0 25px rgba(255, 214, 10, 0.6);
+        }
+    }
+
+    .high-jackpot {
+        animation: pulse-glow 2s infinite alternate;
+        font-weight: 700 !important;
     }
 </style>
 </head>
 <body>
 
-<canvas id="matrixCanvas"></canvas>
+<div id="screensaver-layer"></div>
+
+<div class="dashboard-container" id="dashboard-main">
+    <div class="upper-part">
+        <div class="flip-clock-wrapper">
+            <div class="flip-card"><div class="flip-card-inner" id="h1">0</div></div>
+            <div class="flip-card"><div class="flip-card-inner" id="h2">0</div></div>
+            <div class="colon">:</div>
+            <div class="flip-card"><div class="flip-card-inner" id="m1">0</div></div>
+            <div class="flip-card"><div class="flip-card-inner" id="m2">0</div></div>
+        </div>
+        <div class="date-display" id="dateDisplay">載入中...</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="bottom-part">
+        <div class="meta-row">
+            <div class="source-tag">
+                <span class="source-dot" id="sourceDot"></span>
+                <span id="sourceLabel">系統啟動中</span>
+            </div>
+            <div id="timeLabel">--:--</div>
+        </div>
+        <div class="message-card">
+            <div class="message-text" id="msgLine1"><span class="highlight">歡迎使用</span> 智慧儀表板</div>
+            <div class="message-text" id="msgLine2">正在連線並同步資料...</div>
+            <div class="message-text" id="msgLine3"></div>
+        </div>
+    </div>
+</div>
 
 <script>
 // ==========================================
-// 1. iPad 4:3 滿版原生網格 (64x48, 2048x1536)
+// 1. 翻牌時鐘與中文日期更新
 // ==========================================
-const COLS = 64;
-const ROWS = 48; 
-const canvas = document.getElementById('matrixCanvas');
-const ctx = canvas.getContext('2d', { alpha: false });
+function updateClock() {
+    const now = new Date();
+    let hours = now.getHours() % 12 || 12;
+    const hStr = String(hours).padStart(2, '0');
+    const mStr = String(now.getMinutes()).padStart(2, '0');
+    
+    document.getElementById('h1').textContent = hStr[0];
+    document.getElementById('h2').textContent = hStr[1];
+    document.getElementById('m1').textContent = mStr[0];
+    document.getElementById('m2').textContent = mStr[1];
+    
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const date = now.getDate();
+    const weekDaysZh = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    
+    document.getElementById('dateDisplay').textContent = `${year} 年${month} 月${date} 日, ${weekDaysZh[now.getDay()]}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
 
-const CELL_SIZE = 32; // 2048 / 64 = 32px，1536 / 48 = 32px
-const DOT_SIZE = 24;  
-const DOT_GAP = 8;    
+// ==========================================
+// 2. 六合彩彩球分類對照表
+// ==========================================
+const RED_BALLS   = [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46];
+const BLUE_BALLS  = [3, 4, 9, 10, 14, 15, 20, 25, 26, 31, 36, 37, 41, 42, 47, 48];
+const GREEN_BALLS = [5, 6, 11, 16, 17, 21, 22, 27, 28, 32, 33, 38, 39, 43, 44, 49];
 
-canvas.width = COLS * CELL_SIZE;  
-canvas.height = ROWS * CELL_SIZE; 
+function getBallClass(num) {
+    const n = parseInt(num, 10);
+    if (RED_BALLS.includes(n)) return 'ms-red';
+    if (BLUE_BALLS.includes(n)) return 'ms-blue';
+    return 'ms-green';
+}
 
-const backplate = document.createElement('canvas');
-backplate.width = canvas.width;
-backplate.height = canvas.height;
-const bgCtx = backplate.getContext('2d', { alpha: false });
-
-bgCtx.fillStyle = '#050505';
-bgCtx.fillRect(0, 0, backplate.width, backplate.height);
-
-bgCtx.fillStyle = '#111111';
-for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-        let x = c * CELL_SIZE + CELL_SIZE / 2;
-        let y = r * CELL_SIZE + CELL_SIZE / 2;
-        bgCtx.beginPath();
-        bgCtx.arc(x, y, DOT_SIZE / 2, 0, Math.PI * 2);
-        bgCtx.fill();
+function renderBallHtml(num) {
+    if (!num || num === "--") {
+        return `<span class="ms-ball" style="background:#334155; color:#94a3b8;">--</span>`;
     }
+    const padded = String(num).padStart(2, '0');
+    return `<span class="ms-ball ${getBallClass(num)}">${padded}</span>`;
 }
 
 // ==========================================
-// 2. 超大時鐘與數字字庫
+// 3. 資料獲取區 (天氣、港鐵、城巴790、新聞、六合彩)
 // ==========================================
-const hugeFont = {
-    '0': ['011111110','111111111','111000111','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','111000111','111111111','011111110'],
-    '1': ['0001100','0011100','0111100','1101100','0001100','0001100','0001100','0001100','0001100','0001100','0001100','0001100','0001100','0001100','0001100','1111111','1111111'],
-    '2': ['011111110','111111111','111000111','110000011','000000011','000000111','000001110','000011100','000111000','001110000','011100000','111000000','110000000','110000000','110000000','111111111','111111111'],
-    '3': ['011111110','111111111','111000111','110000011','000000011','000000011','000000111','000111110','000111110','000000111','000000011','000000011','000000011','110000011','111000111','111111111','011111110'],
-    '4': ['000000110','000001110','000011110','000110110','001100110','011000110','110000110','110000110','111111111','111111111','000000110','000000110','000000110','000000110','000000110','000000110','000000110'],
-    '5': ['111111111','111111111','110000000','110000000','110000000','111111110','111111111','000000011','000000011','000000011','000000011','000000011','000000011','110000011','111000111','111111111','011111110'],
-    '6': ['001111111','011111111','111000000','110000000','110000000','110000000','111111111','111111111','111000111','110000011','110000011','110000011','110000011','110000011','111000111','111111111','011111110'],
-    '7': ['111111111','111111111','000000011','000000111','000001110','000011100','000111000','001110000','011100000','111000000','111000000','110000000','110000000','110000000','110000000','110000000','110000000'],
-    '8': ['011111110','111111111','111000111','110000011','110000011','111000111','011111110','001111100','011111110','111000111','110000011','110000011','110000011','110000011','111000111','111111111','011111110'],
-    '9': ['011111110','111111111','111000111','110000011','110000011','110000011','110000011','111000111','111111111','011111111','000000011','000000011','000000011','000000011','000000111','111111111','111111100'],
-    ':': ['0000','0000','0000','0110','0110','0000','0000','0000','0000','0000','0000','0110','0110','0000','0000','0000','0000']
-};
+let weatherData = { temp: "--", hum: "--" };
+let mtrSchedule = ["暫無列車資訊", "", ""];
+let ctb790Schedule = ["正在讀取城巴 790 班次...", "", ""];
+let newsHeadlines = [["<span class='highlight'>即時要聞</span> 載入中", "請稍候..."]];
+let ctbStopId = null;
 
-const miniFont = {
-    '0': ['111','101','101','101','111'], '1': ['010','110','010','010','111'],
-    '2': ['111','001','111','100','111'], '3': ['111','001','111','001','111'],
-    '4': ['101','101','111','001','001'], '5': ['111','100','111','001','111'],
-    '6': ['111','100','111','101','111'], '7': ['111','001','010','100','100'],
-    '8': ['111','101','111','101','111'], '9': ['111','101','111','001','111'],
-    'C': ['111','100','100','100','111'], '%': ['11001','11010','00100','01011','10011'],
-    '-': ['000','000','111','000','000'], '.': ['00','00','00','00','11'],
-    ' ': ['00','00','00','00','00'],      '°': ['111','101','111','000','000'],
-    'S': ['111','100','111','001','111'], 'U': ['101','101','101','101','111'],
-    'N': ['1001','1101','1011','1001','1001'], 'M': ['10001','11011','10101','10001','10001'],
-    'T': ['111','010','010','010','010'], 'W': ['10001','10001','10101','11011','10001'],
-    'F': ['111','100','110','100','100'], 'H': ['101','101','111','101','101'],
-    'A': ['111','101','111','101','101'], 'P': ['111','101','111','100','100'],
-    'R': ['111','101','110','101','101']
-};
-
-const hourColors = ['#FF0000','#FF7F00','#FFD700','#7FFF00','#00FF00','#00FF7F','#00FFFF','#007FFF','#0000FF','#7F00FF','#FF00FF','#FF007F'];
-
-// ==========================================
-// 3. 吃豆人與幽靈圖標 (已修正為朝左吃豆)
-// ==========================================
-const pacmanMini = [
-    [ // 張嘴朝左 (Facing Left - Mouth Open)
-        '000111100',
-        '001111110',
-        '011111111',
-        '001111111',
-        '000001111',
-        '001111111',
-        '011111111',
-        '001111110',
-        '000111100'
-    ],
-    [ // 閉嘴 (Mouth Closed)
-        '000111100',
-        '001111110',
-        '011111111',
-        '111111111',
-        '111111111',
-        '111111111',
-        '011111111',
-        '001111110',
-        '000111100'
-    ]
-];
-
-const ghostMini = [
-    '001111100',
-    '011111110',
-    '112212211',
-    '113213211',
-    '111111111',
-    '111111111',
-    '111111111',
-    '111111111',
-    '101010101'
-];
-
-const iconSunny = ['00000100000','00100100100','00010001000','01001110010','00011111000','11011111011','00011111000','01001110010','00010001000','00100100100','00000100000'];
-const iconCloudy = ['00000000000','00000222000','00002222200','00022222220','00222222220','02222222222','02222222222','00222222200','00000000000','00000000000','00000000000'];
-const iconPartlyCloudy = ['00000100000','00100101000','00011110000','01011111000','00011222000','00022222200','00222222220','02222222222','02222222222','00222222200','00000000000'];
-const iconRain = ['00002220000','00022222000','00222222220','02222222222','02222222222','00222222200','00030030000','00300300300','00030030000','00300003000','00000000000'];
-
-// ==========================================
-// 4. 12px 點陣光柵化渲染器 (雙重保障防裁切)
-// ==========================================
-const textMatrixCache = {};
-
-function rasterizeTextToMatrix(key, text) {
-    if (!text) return;
-    try {
-        const off = document.createElement('canvas');
-        const octx = off.getContext('2d', { willReadFrequently: true });
-        
-        const fontStr = "12px 'ArkPixel12', sans-serif";
-        octx.font = fontStr;
-        const textWidth = Math.ceil(octx.measureText(text).width) || 120;
-        
-        off.width = textWidth + 8;
-        off.height = 20; // 充足的垂直緩衝
-        
-        octx.fillStyle = "#000000";
-        octx.fillRect(0, 0, off.width, off.height);
-        
-        octx.font = fontStr;
-        octx.fillStyle = "#ffffff";
-        octx.textBaseline = "top";
-        octx.fillText(text, 2, 2);
-        
-        const imgData = octx.getImageData(0, 0, off.width, off.height);
-        
-        let firstActiveY = -1;
-        for (let y = 0; y < off.height; y++) {
-            for (let x = 0; x < off.width; x++) {
-                if (imgData.data[(y * off.width + x) * 4] > 60) {
-                    firstActiveY = y;
-                    break;
-                }
-            }
-            if (firstActiveY !== -1) break;
-        }
-        if (firstActiveY === -1) firstActiveY = 2;
-
-        const TARGET_HEIGHT = 12;
-        const dots = [];
-        for (let x = 0; x < off.width; x++) {
-            dots[x] = [];
-            for (let r = 0; r < TARGET_HEIGHT; r++) {
-                const actualY = firstActiveY + r;
-                if (actualY < off.height) {
-                    const idx = (actualY * off.width + x) * 4;
-                    dots[x][r] = imgData.data[idx] > 60 ? 1 : 0;
-                } else {
-                    dots[x][r] = 0;
-                }
-            }
-        }
-        
-        textMatrixCache[key] = {
-            width: off.width,
-            height: TARGET_HEIGHT,
-            dots: dots
-        };
-    } catch(e) {
-        console.warn("光柵化渲染失敗:", e);
+// 六合彩資料模型
+let markSixData = {
+    drawNo: "載入中",
+    numbers: ["--", "--", "--", "--", "--", "--"],
+    special: "--",
+    prizes: {
+        first: "載入中...",
+        second: "--",
+        third: "--"
+    },
+    nextDraw: {
+        rawDateStr: "", 
+        date: "載入中...",
+        jackpotAmount: 0,
+        jackpotText: "--",
+        isSnowball: false
     }
-}
-
-// ==========================================
-// 5. 即時資料同步 (天氣、港鐵、新聞)
-// ==========================================
-let weatherTemp = "--";
-let weatherHum = "--";
-let weatherIconCode = 52;
-let mtrRawText = "康城往北角: 正在連線中...";
-
-const NEWS_SOURCES = [
-    { label: "港台", url: "https://rthk9.rthk.hk/rthk/news/rss/c_expressnews_clocal.xml" },
-    { label: "Yahoo", url: "https://hk.news.yahoo.com/rss/hong-kong" },
-    { label: "政府", url: "https://www.news.gov.hk/rss/tc.xml" },
-    { label: "SCMP", url: "https://www.scmp.com/rss" }
-];
-
-let newsHeadlinePool = ["即時要聞: 香港天氣良好，交通順暢。"];
-let activeHeadlineIndex = 0;
-
-// 頁面載入時立即預先生成點陣快取，絕不留白
-rasterizeTextToMatrix('mtr', mtrRawText);
-rasterizeTextToMatrix('news', newsHeadlinePool[0]);
-
-if (document.fonts) {
-    document.fonts.ready.then(function() {
-        if (mtrRawText) rasterizeTextToMatrix('mtr', mtrRawText);
-        if (newsHeadlinePool.length > 0) renderActiveHeadline();
-    });
-}
+};
 
 async function fetchWeather() {
     try {
         const hkoRes = await fetch("https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc");
         const hkoData = await hkoRes.json();
-        
         if (hkoData?.temperature?.data) {
             let t = hkoData.temperature.data.find(s => s.place.includes("將軍澳") || s.place.includes("康城")) || hkoData.temperature.data[0];
-            if (t?.value !== undefined) weatherTemp = t.value;
+            weatherData.temp = t ? t.value : "--";
         }
-        if (hkoData?.icon?.length > 0) weatherIconCode = hkoData.icon[0];
-        
-        const omRes = await fetch("https://api.open-meteo.com/v1/forecast?latitude=22.296&longitude=114.271&current=relative_humidity_2m&timezone=Asia%2FHong_Kong");
-        const omData = await omRes.json();
-        if (omData?.current?.relative_humidity_2m !== undefined) {
-            weatherHum = omData.current.relative_humidity_2m;
-        } else if (hkoData?.humidity?.data) {
-            weatherHum = hkoData.humidity.data[0].value;
+        if (hkoData?.humidity?.data) {
+            weatherData.hum = hkoData.humidity.data[0].value + "%";
         }
     } catch(e) {}
 }
 
-async function fetchMTRSchedule() {
+async function fetchMTR() {
     try {
         const res = await fetch("https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TKL&sta=LHP");
         const json = await res.json();
-        
         if (json.status === 1 && json.data && json.data["TKL-LHP"]) {
-            const lhp = json.data["TKL-LHP"];
-            let rawList = (lhp.DOWN || []).concat(lhp.UP || []);
-            let departures = rawList.filter(t => t.dest !== 'LHP');
-            
+            const departures = (json.data["TKL-LHP"].DOWN || []).concat(json.data["TKL-LHP"].UP || []).filter(t => t.dest !== 'LHP');
             if (departures.length > 0) {
                 const destNames = { 'NOP': '北角', 'TIK': '調景嶺', 'POA': '寶琳', 'TKO': '將軍澳' };
-                const next3 = departures.slice(0, 3);
-                
-                const parts = next3.map(t => {
-                    const dest = destNames[t.dest] || t.dest || '北角';
-                    let mins = t.ttnt;
-                    if (mins === undefined || mins === null || isNaN(mins)) {
-                        const safeTimeStr = (t.time || '').replace(/-/g, '/');
-                        mins = Math.max(0, Math.round((new Date(safeTimeStr) - new Date()) / 60000));
-                    } else {
-                        mins = parseInt(mins, 10);
-                    }
-                    const minStr = (mins === 0) ? "即將開出" : `${mins}分`;
-                    return `${dest} ${minStr}`;
+                mtrSchedule = departures.slice(0, 3).map((t, i) => {
+                    const dest = destNames[t.dest] || t.dest;
+                    const mins = parseInt(t.ttnt, 10);
+                    const label = (mins === 0) ? "即將開出" : `<span class='highlight'>${mins} 分鐘後</span>`;
+                    return `第 ${i + 1} 班往${dest}：${label}`;
                 });
-                
-                mtrRawText = "康城開出: " + parts.join(" · ");
+                while(mtrSchedule.length < 3) mtrSchedule.push("");
             } else {
-                mtrRawText = "康城站: 列車服務暫停或已過尾班車";
+                mtrSchedule = ["暫無即將開出的列車", "", ""];
             }
-            rasterizeTextToMatrix('mtr', mtrRawText);
         }
     } catch(e) {}
 }
 
-async function fetchHKNews() {
-    let collectedHeadlines = [];
-    for (const src of NEWS_SOURCES) {
-        try {
-            const rssUrl = encodeURIComponent(src.url);
-            const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
-            const data = await res.json();
-            
-            if (data.status === 'ok' && data.items && data.items.length > 0) {
-                for (let i = 0; i < Math.min(2, data.items.length); i++) {
-                    let title = data.items[i].title || "";
-                    title = title.replace(/<[^>]*>?/gm, '').trim();
-                    if (title) {
-                        let formatted = `${src.label}: ${title}`;
-                        if (formatted.length > 50) formatted = formatted.substring(0, 49) + "…";
-                        collectedHeadlines.push(formatted);
-                    }
-                }
+async function fetchCTB790() {
+    try {
+        if (!ctbStopId) {
+            const routeRes = await fetch("https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB/790/outbound");
+            const routeJson = await routeRes.json();
+            if (routeJson?.data) {
+                const stopItem = routeJson.data.find(s => parseInt(s.seq, 10) === 4) || routeJson.data[3];
+                if (stopItem) ctbStopId = stopItem.stop;
             }
-        } catch(e) {}
-    }
-    
-    if (collectedHeadlines.length > 0) {
-        newsHeadlinePool = collectedHeadlines;
-        renderActiveHeadline();
+        }
+
+        if (!ctbStopId) return;
+
+        const etaRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${ctbStopId}/790`);
+        const etaJson = await etaRes.json();
+
+        if (etaJson?.data) {
+            const now = new Date();
+            const validEtas = etaJson.data
+                .filter(item => item.dir === 'O' && item.eta)
+                .sort((a, b) => new Date(a.eta) - new Date(b.eta))
+                .slice(0, 3);
+
+            if (validEtas.length > 0) {
+                ctb790Schedule = validEtas.map((item, i) => {
+                    const etaTime = new Date(item.eta);
+                    const diffMins = Math.max(0, Math.round((etaTime - now) / 60000));
+                    const label = (diffMins === 0) ? "即將抵達" : `<span class='highlight'>${diffMins} 分鐘後</span>`;
+                    const remark = item.rmk_tc ? ` <span style="font-size:0.85em; opacity:0.7;">(${item.rmk_tc})</span>` : "";
+                    return `第 ${i + 1} 班車：${label}${remark}`;
+                });
+                while(ctb790Schedule.length < 3) ctb790Schedule.push("");
+            } else {
+                ctb790Schedule = ["今日服務已結束或暫無即時班次", "往 尖沙咀 (麼地道)", ""];
+            }
+        }
+    } catch(e) {
+        ctb790Schedule = ["城巴 790 線暫時無法連線", "", ""];
     }
 }
 
-function renderActiveHeadline() {
-    if (newsHeadlinePool.length === 0) return;
-    const headline = newsHeadlinePool[activeHeadlineIndex % newsHeadlinePool.length];
-    rasterizeTextToMatrix('news', headline);
+async function fetchNews() {
+    try {
+        const rssUrl = encodeURIComponent("https://rthk9.rthk.hk/rthk/news/rss/c_expressnews_clocal.xml");
+        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
+        const data = await res.json();
+        if (data.status === 'ok' && data.items && data.items.length > 0) {
+            newsHeadlines = data.items.slice(0, 8).map(item => {
+                const rawTitle = item.title.replace(/<[^>]*>?/gm, '').trim();
+                let highlightPrefix = rawTitle.length > 4 ? `<span class='highlight'>${rawTitle.substring(0, 4)}</span>` : `<span class='highlight'>${rawTitle}</span>`;
+                let remaining = rawTitle.length > 4 ? rawTitle.substring(4) : "";
+                
+                if (rawTitle.length > 16) {
+                    return [
+                        highlightPrefix + rawTitle.substring(4, 16),
+                        rawTitle.substring(16, 32) + (rawTitle.length > 32 ? "…" : "")
+                    ];
+                }
+                return [highlightPrefix + remaining, ""];
+            });
+        }
+    } catch(e) {}
+}
+
+async function fetchMarkSix() {
+    const target = "https://bet.hkjc.com/marksix/getJSON.aspx?jsontype=last_and_next_draw";
+    const proxyList = [
+        `https://corsproxy.io/?${encodeURIComponent(target)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`
+    ];
+
+    for (const url of proxyList) {
+        try {
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (!res.ok) continue;
+            const data = await res.json();
+            
+            if (data?.lastDraw) {
+                markSixData.drawNo = data.lastDraw.id || markSixData.drawNo;
+                if (data.lastDraw.result) {
+                    const parts = data.lastDraw.result.split(',');
+                    if (parts.length >= 7) {
+                        markSixData.numbers = parts.slice(0, 6);
+                        markSixData.special = parts[6];
+                    }
+                }
+                if (data.lastDraw.prizes) {
+                    const p1 = data.lastDraw.prizes[0];
+                    markSixData.prizes.first = (p1 && parseInt(p1.count, 10) > 0)
+                        ? `$${Number(p1.amount).toLocaleString()} (${p1.count}注)` 
+                        : "無人中";
+                    markSixData.prizes.second = data.lastDraw.prizes[1] 
+                        ? `$${Number(data.lastDraw.prizes[1].amount).toLocaleString()}` 
+                        : "--";
+                    markSixData.prizes.third = data.lastDraw.prizes[2] 
+                        ? `$${Number(data.lastDraw.prizes[2].amount).toLocaleString()}` 
+                        : "--";
+                }
+            }
+
+            if (data?.nextDraw) {
+                markSixData.nextDraw.rawDateStr = data.nextDraw.date || "";
+                
+                if (data.nextDraw.date) {
+                    const dParts = data.nextDraw.date.split('/');
+                    if (dParts.length === 3) {
+                        const drawDay = new Date(parseInt(dParts[2]), parseInt(dParts[1]) - 1, parseInt(dParts[0]));
+                        const weekDaysZh = ['日', '一', '二', '三', '四', '五', '六'];
+                        markSixData.nextDraw.date = `${parseInt(dParts[1])}月${parseInt(dParts[0])}日 (星期${weekDaysZh[drawDay.getDay()]})`;
+                    } else {
+                        markSixData.nextDraw.date = data.nextDraw.date;
+                    }
+                }
+
+                const pool = parseInt(data.nextDraw.jackpot || 0, 10);
+                markSixData.nextDraw.jackpotAmount = pool;
+                markSixData.nextDraw.jackpotText = pool > 0 ? `$${pool.toLocaleString()}` : "$8,000,000";
+                markSixData.nextDraw.isSnowball = !!data.nextDraw.snowball;
+            }
+
+            break;
+        } catch (err) {}
+    }
 }
 
 fetchWeather();
-fetchMTRSchedule();
-fetchHKNews();
+fetchMTR();
+fetchCTB790();
+fetchNews();
+fetchMarkSix();
 
 setInterval(fetchWeather, 5 * 60 * 1000);
-setInterval(fetchMTRSchedule, 30 * 1000);
-setInterval(fetchHKNews, 8 * 60 * 1000);
-
-function getIconSprite() {
-    if (weatherIconCode >= 50 && weatherIconCode <= 52) return iconPartlyCloudy;
-    if (weatherIconCode >= 53 && weatherIconCode <= 54) return iconSunny;
-    if (weatherIconCode >= 60 && weatherIconCode <= 61) return iconCloudy;
-    if (weatherIconCode >= 62 && weatherIconCode <= 65) return iconRain;
-    return iconPartlyCloudy;
-}
+setInterval(fetchMTR, 30 * 1000);
+setInterval(fetchCTB790, 30 * 1000);
+setInterval(fetchNews, 8 * 60 * 1000);
+setInterval(fetchMarkSix, 15 * 60 * 1000);
 
 // ==========================================
-// 6. 點陣繪圖方法
+// 4. 護屏模式 (每 5 分鐘執行 20 秒)
 // ==========================================
-function drawLitDot(col, row, color) {
-    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
-    let x = col * CELL_SIZE + CELL_SIZE / 2;
-    let y = row * CELL_SIZE + CELL_SIZE / 2;
-    ctx.beginPath();
-    ctx.arc(x, y, DOT_SIZE / 2, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-}
+const screenSaverLayer = document.getElementById('screensaver-layer');
+const dashboardMain = document.getElementById('dashboard-main');
+let isScreenSaverMode = false;
+let nextBgImageUrl = "";
 
-function drawSprite(sprite, startX, startY, colorMap) {
-    for (let r = 0; r < sprite.length; r++) {
-        for (let c = 0; c < sprite[r].length; c++) {
-            if (sprite[r][c] !== '0') drawLitDot(Math.floor(startX + c), startY + r, colorMap[sprite[r][c]] || '#FFFFFF');
-        }
-    }
+function preloadNextImage() {
+    const ts = new Date().getTime(); 
+    nextBgImageUrl = `https://picsum.photos/2048/1536?random=${ts}`;
+    const img = new Image();
+    img.src = nextBgImageUrl;
 }
+preloadNextImage();
 
-function drawHugeText(text, startX, startY, color) {
-    let currX = startX;
-    for (let i = 0; i < text.length; i++) {
-        let charData = hugeFont[text[i]];
-        if (!charData) { currX += 4; continue; }
-        for (let r = 0; r < charData.length; r++) {
-            for (let c = 0; c < charData[r].length; c++) {
-                if (charData[r][c] === '1') drawLitDot(currX + c, startY + r, color);
-            }
-        }
-        currX += charData[0].length + 2;
-    }
-}
-
-function drawMiniText(text, startX, startY, color) {
-    let currX = startX;
-    for (let i = 0; i < text.length; i++) {
-        let sprite = miniFont[text[i]] || miniFont[' '];
-        for (let r = 0; r < sprite.length; r++) {
-            for (let c = 0; c < sprite[r].length; c++) {
-                if (sprite[r][c] === '1') drawLitDot(currX + c, startY + r, color);
-            }
-        }
-        currX += sprite[0].length + 1;
-    }
-    return currX;
-}
-
-function drawRasterText(key, scrollX, startY, color) {
-    const cached = textMatrixCache[key];
-    if (!cached || !cached.dots) return;
+function startScreenSaver() {
+    isScreenSaverMode = true;
+    screenSaverLayer.style.backgroundImage = `url('${nextBgImageUrl}')`;
     
-    const startCol = Math.floor(scrollX);
-    for (let c = 0; c < COLS; c++) {
-        let srcX = c - startCol;
-        if (srcX >= 0 && srcX < cached.width && cached.dots[srcX]) {
-            for (let r = 0; r < cached.height; r++) {
-                if (cached.dots[srcX][r] === 1) drawLitDot(c, startY + r, color);
-            }
-        }
-    }
+    dashboardMain.style.opacity = '0';
+    screenSaverLayer.style.opacity = '1';
+
+    setTimeout(() => {
+        screenSaverLayer.style.opacity = '0';
+        dashboardMain.style.opacity = '1';
+        isScreenSaverMode = false;
+        setTimeout(preloadNextImage, 5000);
+    }, 20000);
 }
 
-// ==========================================
-// 7. 主渲染迴圈
-// ==========================================
-const DURATION_PACMAN  = 20; 
-const DURATION_WEATHER = 60;
-const DURATION_MTR     = 25;
-const DURATION_NEWS    = 35;
-const TOTAL_CYCLE = DURATION_PACMAN + DURATION_WEATHER + DURATION_MTR + DURATION_NEWS; 
+setInterval(startScreenSaver, 5 * 60 * 1000);
 
-let prevCyclePhase = -1;
+// ==========================================
+// 5. 5 階段資訊輪播邏輯 (總週期 80 秒)
+// ==========================================
+function updateMessageDisplay(source, time, line1, line2, line3 = "", isPulsing = false) {
+    if (isScreenSaverMode) return; 
 
-function animate() {
-    try {
-        ctx.drawImage(backplate, 0, 0);
-        
-        const now = new Date();
-        const currentColor = hourColors[now.getHours() % 12];
-        canvas.style.filter = `drop-shadow(0 0 12px ${currentColor}45)`;
-        
-        // 頂部日期 (第 2 至 6 列)
-        const month = (now.getMonth() + 1 < 10 ? '0' : '') + (now.getMonth() + 1);
-        const day = (now.getDate() < 10 ? '0' : '') + now.getDate();
-        const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-        const dateStr = `${month}.${day}  ${weekDays[now.getDay()]}`;
-        
-        let dateWidth = 0;
-        for(let c of dateStr) dateWidth += (miniFont[c]||miniFont[' '])[0].length + 1;
-        dateWidth--;
-        drawMiniText(dateStr, Math.floor((COLS - dateWidth) / 2), 2, '#888888');
-        
-        // 超大時鐘 (第 10 至 26 列)
-        const timeStr = (now.getHours() % 12 || 12) + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
-        let totalClockWidth = 0;
-        for (let char of timeStr) if (hugeFont[char]) totalClockWidth += hugeFont[char][0].length + 2;
-        totalClockWidth -= 2;
-        drawHugeText(timeStr, Math.floor((COLS - totalClockWidth) / 2), 10, currentColor);
-        
-        // 下半部 4 階段輪播
-        const cycleTime = (Date.now() / 1000) % TOTAL_CYCLE;
-        let currentPhase = 0;
-        
-        if (cycleTime < DURATION_PACMAN) {
-            currentPhase = 1;
-            const t = cycleTime;
-            let pacmanX = 64 - (t * 4.6);
-            let mouth = Math.floor(t * 4) % 2 === 0 ? 0 : 1;
-            
-            // 豆子繪製在吃豆人左方
-            for (let dotC = 2; dotC < Math.round(pacmanX); dotC += 4) {
-                drawLitDot(dotC, 38, '#555555');
-            }
-            
-            // 吃豆人（朝左張嘴吃豆）與幽靈
-            drawSprite(pacmanMini[mouth], Math.round(pacmanX), 34, { '1': '#FFD700' });
-            drawSprite(ghostMini, Math.round(pacmanX + 14), 34, { '1': '#FF69B4', '2': '#FFFFFF', '3': '#0026FF' });
-            
-        } else if (cycleTime < DURATION_PACMAN + DURATION_WEATHER) {
-            currentPhase = 2;
-            const tStr = isNaN(weatherTemp) ? "--°C" : Math.round(weatherTemp) + "°C";
-            const hStr = isNaN(weatherHum) ? "--%" : Math.round(weatherHum) + "%";
-            
-            let tWidth = 0; for(let c of tStr) tWidth += (miniFont[c]||miniFont[' '])[0].length + 1; tWidth--;
-            let hWidth = 0; for(let c of hStr) hWidth += (miniFont[c]||miniFont[' '])[0].length + 1; hWidth--;
-            
-            const GAP = 5;
-            let startX = Math.floor((COLS - (11 + GAP + tWidth + GAP + hWidth)) / 2);
-            
-            drawSprite(getIconSprite(), startX, 33, { '1': '#FFD700', '2': '#FFFFFF', '3': '#00BFFF' });
-            startX += 11 + GAP;
-            startX = drawMiniText(tStr, startX, 36, '#FFFFFF');
-            startX += GAP;
-            drawMiniText(hStr, startX, 36, '#00BFFF');
-            
-        } else if (cycleTime < DURATION_PACMAN + DURATION_WEATHER + DURATION_MTR) {
-            currentPhase = 3;
-            const phaseElapsed = cycleTime - (DURATION_PACMAN + DURATION_WEATHER);
-            const cached = textMatrixCache['mtr'];
-            const textW = cached ? cached.width : 220;
-            const progress = phaseElapsed / DURATION_MTR;
-            const scrollX = 64 - progress * (textW + 64);
-            
-            // 12 點陣排列於第 33 列 (33 至 44 列，上下預留均衡留白)
-            drawRasterText('mtr', scrollX, 33, '#00F0FF');
-            
+    const l1 = document.getElementById('msgLine1');
+    const l2 = document.getElementById('msgLine2');
+    const l3 = document.getElementById('msgLine3');
+    const src = document.getElementById('sourceLabel');
+    const tLabel = document.getElementById('timeLabel');
+    const dot = document.getElementById('sourceDot');
+
+    l1.classList.remove('visible');
+    l2.classList.remove('visible');
+    l3.classList.remove('visible');
+
+    setTimeout(() => {
+        src.innerHTML = source;
+        tLabel.textContent = time;
+        l1.innerHTML = line1;
+        l2.innerHTML = line2;
+        l3.innerHTML = line3;
+
+        if (isPulsing) {
+            dot.classList.add('pulse-today');
         } else {
-            currentPhase = 4;
-            if (prevCyclePhase !== 4 && newsHeadlinePool.length > 0) {
-                activeHeadlineIndex = (activeHeadlineIndex + 1) % newsHeadlinePool.length;
-                renderActiveHeadline();
-            }
-            
-            const phaseElapsed = cycleTime - (DURATION_PACMAN + DURATION_WEATHER + DURATION_MTR);
-            const cached = textMatrixCache['news'];
-            const textW = cached ? cached.width : 320;
-            const progress = phaseElapsed / DURATION_NEWS;
-            const scrollX = 64 - progress * (textW + 64);
-            
-            // 12 點陣排列於第 33 列
-            drawRasterText('news', scrollX, 33, '#FFB703');
+            dot.classList.remove('pulse-today');
         }
-        
-        prevCyclePhase = currentPhase;
-    } catch(err) {
-        console.error("渲染迴圈發生錯誤:", err);
-    }
-    
-    requestAnimationFrame(animate);
+
+        l1.classList.add('visible');
+        if (line2) l2.classList.add('visible');
+        if (line3) l3.classList.add('visible');
+    }, 850);
 }
 
-animate();
+function runInfoCycle() {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    // Step 1 (0s): 天氣 (持續 20 秒)
+    updateMessageDisplay(
+        "香港天文台 即時天氣",
+        timeStr,
+        `將軍澳氣溫 <span class='highlight'>${weatherData.temp}°C</span>`,
+        `相對濕度 <span class='highlight'>${weatherData.hum}</span>`,
+        ""
+    );
+
+    // Step 2 (20s): 港鐵 (持續 15 秒)
+    setTimeout(() => {
+        if (isScreenSaverMode) return;
+        updateMessageDisplay(
+            "MTR 港鐵 康城站班次",
+            timeStr,
+            mtrSchedule[0] || "",
+            mtrSchedule[1] || "",
+            mtrSchedule[2] || ""
+        );
+    }, 20000);
+
+    // Step 3 (35s): 城巴 790 峻瀅站 (持續 10 秒)
+    setTimeout(() => {
+        if (isScreenSaverMode) return;
+        updateMessageDisplay(
+            "城巴 790 往尖沙咀 (麼地道)",
+            "峻瀅站 · 到站預報",
+            ctb790Schedule[0] || "",
+            ctb790Schedule[1] || "",
+            ctb790Schedule[2] || ""
+        );
+    }, 35000);
+
+    // Step 4 (45s): 即時新聞 (持續 20 秒)
+    setTimeout(() => {
+        if (isScreenSaverMode) return;
+        const news = newsHeadlines[Math.floor(Math.random() * newsHeadlines.length)] || ["即時要聞讀取中", ""];
+        updateMessageDisplay(
+            "香港電台 即時要聞 RTHK",
+            timeStr,
+            news[0],
+            news[1],
+            ""
+        );
+    }, 45000);
+
+    // Step 5 (65s): 六合彩 上期結果與下期頭獎 (持續 15 秒)
+    setTimeout(() => {
+        if (isScreenSaverMode) return;
+
+        // 精確比對今日日期是否與「下期攪珠日」相符
+        let isTodayDraw = false;
+        if (markSixData.nextDraw.rawDateStr) {
+            const todayStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            isTodayDraw = (markSixData.nextDraw.rawDateStr === todayStr);
+        }
+
+        let sourceTitle = `香港賽馬會 六合彩 (第 ${markSixData.drawNo} 期)`;
+        let rightMeta = "攪珠結果";
+        if (isTodayDraw) {
+            sourceTitle = `六合彩 Mark Six · <span style="color:#ffd60a;">今日攪珠 (晚上9:15截止)</span>`;
+            rightMeta = "今晚開彩";
+        }
+
+        // 第 1 行：經典紅/藍/綠彩球圓圈 + 特別號碼
+        const ballsHtml = markSixData.numbers.map(n => renderBallHtml(n)).join('') 
+                        + `<span class="ms-plus">+</span>` 
+                        + renderBallHtml(markSixData.special);
+        const line1 = `<div class="balls-row">${ballsHtml}</div>`;
+
+        // 第 2 行：前三獎派彩金額
+        const line2 = `頭獎: <span class='highlight'>${markSixData.prizes.first}</span> · 二獎: ${markSixData.prizes.second} · 三獎: ${markSixData.prizes.third}`;
+
+        // 第 3 行：下期攪珠日期與頭獎 (超過 3000 萬或金多寶觸發呼吸紅黃色)
+        const isHighJackpot = markSixData.nextDraw.jackpotAmount >= 30000000 || markSixData.nextDraw.isSnowball;
+        const jackpotClass = isHighJackpot ? "high-jackpot" : "highlight";
+        const snowballBadge = markSixData.nextDraw.isSnowball ? " [金多寶]" : "";
+        const line3 = `下期攪珠: ${markSixData.nextDraw.date} · 估計頭獎 <span class="${jackpotClass}">${markSixData.nextDraw.jackpotText}${snowballBadge}</span>`;
+
+        updateMessageDisplay(
+            sourceTitle,
+            rightMeta,
+            line1,
+            line2,
+            line3,
+            isTodayDraw
+        );
+    }, 65000);
+}
+
+// 首次啟動與設定每 80 秒一圈的循環 (20s + 15s + 10s + 20s + 15s = 80s)
+setTimeout(() => {
+    runInfoCycle();
+    setInterval(runInfoCycle, 80000);
+}, 500);
+
 </script>
 </body>
 </html>
