@@ -8,10 +8,10 @@
 <title>Tidbyt Style Matrix Panel 64x48</title>
 
 <style>
-    /* 引用同目錄下的 16px 香港繁體像素字型 */
+    /* 引用同目錄下的 12px 香港繁體點陣字型 */
     @font-face {
-        font-family: 'ArkPixel16';
-        src: url('ark-pixel-16px-proportional-zh_hk.ttf.woff2') format('woff2');
+        font-family: 'ArkPixel12';
+        src: url('ark-pixel-12px-monospaced-zh_hk.otf.woff2') format('woff2');
         font-weight: normal;
         font-style: normal;
         font-display: block;
@@ -31,7 +31,6 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        /* 完全滿版，不留外圍白邊 */
         padding: 0;
         margin: 0;
         user-select: none;
@@ -44,7 +43,6 @@
         height: 100vh;
         max-width: 100%;
         max-height: 100%;
-        /* 嚴格對應 iPad Pro 9.7 的 4:3 比例 (2048x1536) */
         aspect-ratio: 4 / 3;
         object-fit: contain;
         filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25));
@@ -65,13 +63,12 @@ const canvas = document.getElementById('matrixCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 
 const CELL_SIZE = 32; // 2048 / 64 = 32px，1536 / 48 = 32px
-const DOT_SIZE = 24;  // 24px LED 圓點
-const DOT_GAP = 8;    // 8px 間距
+const DOT_SIZE = 24;  
+const DOT_GAP = 8;    
 
-canvas.width = COLS * CELL_SIZE;  // 2048 px
-canvas.height = ROWS * CELL_SIZE; // 1536 px
+canvas.width = COLS * CELL_SIZE;  
+canvas.height = ROWS * CELL_SIZE; 
 
-// 離線預製點陣底板
 const backplate = document.createElement('canvas');
 backplate.width = canvas.width;
 backplate.height = canvas.height;
@@ -139,7 +136,7 @@ const iconPartlyCloudy = ['00000100000','00100101000','00011110000','01011111000
 const iconRain = ['00002220000','00022222000','00222222220','02222222222','02222222222','00222222200','00030030000','00300300300','00030030000','00300003000','00000000000'];
 
 // ==========================================
-// 3. 專用 16px 點陣光柵器 (解決字底裁切問題)
+// 3. 12px 點陣光柵化渲染器 (防裁切 + 自動垂直對齊)
 // ==========================================
 const textMatrixCache = {};
 
@@ -148,13 +145,14 @@ function rasterizeTextToMatrix(key, text) {
     const off = document.createElement('canvas');
     const octx = off.getContext('2d', { willReadFrequently: true });
     
-    const fontStr = "16px 'ArkPixel16', sans-serif";
+    // 使用 12px ArkPixel
+    const fontStr = "12px 'ArkPixel12', sans-serif";
     octx.font = fontStr;
     const textWidth = Math.ceil(octx.measureText(text).width);
     
-    // 【關鍵修正 1】：將高度設為 24（預留足夠繪圖空間，防止字形底部被裁切）
-    off.width = textWidth + 12;
-    off.height = 24; 
+    // 預留足夠垂直畫布高度 (20px)，防止被字體內建行高截斷底部
+    off.width = textWidth + 8;
+    off.height = 20; 
     
     octx.fillStyle = "#000000";
     octx.fillRect(0, 0, off.width, off.height);
@@ -162,12 +160,11 @@ function rasterizeTextToMatrix(key, text) {
     octx.font = fontStr;
     octx.fillStyle = "#ffffff";
     octx.textBaseline = "top";
-    // 從 y = 2 開始繪製，給予適當頂部緩衝
     octx.fillText(text, 2, 2);
     
     const imgData = octx.getImageData(0, 0, off.width, off.height);
     
-    // 【關鍵修正 2】：自動掃描文字實際繪製的頂部，做精確 16 行對齊裁切
+    // 自動掃描實際文字繪製的起始 Y 軸
     let firstActiveY = -1;
     for (let y = 0; y < off.height; y++) {
         for (let x = 0; x < off.width; x++) {
@@ -180,7 +177,7 @@ function rasterizeTextToMatrix(key, text) {
     }
     if (firstActiveY === -1) firstActiveY = 2;
 
-    const TARGET_HEIGHT = 16;
+    const TARGET_HEIGHT = 12; // 12 點陣高度
     const dots = [];
     for (let x = 0; x < off.width; x++) {
         dots[x] = [];
@@ -475,8 +472,8 @@ function animate() {
         const progress = phaseElapsed / DURATION_MTR;
         const scrollX = 64 - progress * (textW + 64);
         
-        // 【關鍵修正 3】：微調至 startY = 30，16 點陣字型剛好佔用 30 至 45 列，下留 2 行黑邊，全字筆劃 100% 呈現
-        drawRasterText('mtr', scrollX, 30, '#00F0FF');
+        // 12 點陣置中排列於第 33 列 (佔用 33 至 44 列，底部預留 3 行完整留白)
+        drawRasterText('mtr', scrollX, 33, '#00F0FF');
         
     } else {
         currentPhase = 4;
@@ -491,8 +488,8 @@ function animate() {
         const progress = phaseElapsed / DURATION_NEWS;
         const scrollX = 64 - progress * (textW + 64);
         
-        // 16 點陣字型座落於 30 至 45 列
-        drawRasterText('news', scrollX, 30, '#FFB703');
+        // 12 點陣置中排列於第 33 列 (佔用 33 至 44 列)
+        drawRasterText('news', scrollX, 33, '#FFB703');
     }
     
     prevCyclePhase = currentPhase;
