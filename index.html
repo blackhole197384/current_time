@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<title>香港天氣時鐘 - 日出康城</title>
+
+<style>
+:root {
+    --text: #ffffff;
+}
+
+* {
+    margin: 0;
+    padding: 0; 
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang HK", "Noto Sans TC", sans-serif;
+    color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ===================
+   背景與動態天氣層
+=================== */
+body {
+    position: relative;
+    background: #061527;
+    transition: background 1.5s ease;
+}
+
+#weatherBackground {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.28);
+    z-index: 1;
+}
+
+/* ===================
+   主面板佈局
+=================== */
+.dashboard {
+    position: relative;
+    z-index: 10;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 3.5vh 4vw 4vh;
+}
+
+/* 上方：時鐘與日期 */
+.clock-panel {
+    flex: 0.9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.clock {
+    font-weight: 700;
+    font-size: clamp(6rem, 16vw, 13rem);
+    line-height: 0.95;
+    letter-spacing: -3px;
+    text-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.date {
+    margin-top: 0.8rem;
+    font-size: clamp(1.3rem, 2.3vw, 2rem);
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 1px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* 下方：實時氣象與 8 小時預報 */
+.weather-panel {
+    flex: 1.1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    max-width: 860px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* 康城地點標籤 */
+.location-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+    font-weight: 600;
+    color: #e2e8f0;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 4px 14px;
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+/* 核心氣象排版 */
+.weather-main-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.weather-icon-wrap {
+    width: clamp(75px, 11vw, 110px);
+    height: clamp(75px, 11vw, 110px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.weather-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+}
+
+.weather-emoji {
+    display: none;
+    font-size: clamp(4rem, 8vw, 5.5rem);
+}
+
+.temperature {
+    font-size: clamp(5rem, 12vw, 8.5rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -2px;
+    text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* 濕度與當日溫差膠囊 */
+.weather-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 10px;
+}
+
+.stat-pill {
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 5px 16px;
+    border-radius: 999px;
+    font-size: clamp(1.05rem, 1.9vw, 1.45rem);
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.condition {
+    margin-top: 10px;
+    font-size: clamp(1.05rem, 1.7vw, 1.4rem);
+    color: rgba(255, 255, 255, 0.95);
+    max-width: 90%;
+    text-align: center;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ===================
+   未來 8 小時折線圖卡片
+=================== */
+.hourly-card {
+    width: 100%;
+    margin-top: 18px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    padding: 12px 18px 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.hourly-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: clamp(0.85rem, 1.3vw, 1.1rem);
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 4px;
+    padding: 0 6px;
+}
+
+.chart-svg {
+    width: 100%;
+    height: 110px;
+    overflow: visible;
+}
+
+/* ===================
+   動態背景特效
+=================== */
+.sun-glow {
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255, 210, 70, 0.4) 0%, rgba(255, 150, 0, 0.15) 45%, rgba(0, 0, 0, 0) 70%);
+    border-radius: 50%;
+    filter: blur(35px);
+    animation: sunPulse 7s ease-in-out infinite alternate;
+}
+
+@keyframes sunPulse {
+    0% { transform: scale(0.92); opacity: 0.65; }
+    100% { transform: scale(1.15); opacity: 0.95; }
+}
+
+.cloud {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.16);
+    width: 380px;
+    height: 130px;
+    border-radius: 120px;
+    filter: blur(16px);
+    animation: cloudMove 65s linear infinite;
+}
+
+.cloud:nth-child(2) {
+    top: 28%;
+    width: 480px;
+    height: 150px;
+    opacity: 0.12;
+    animation-duration: 95s;
+}
+
+@keyframes cloudMove {
+    from { transform: translateX(-500px); }
+    to { transform: translateX(calc(100vw + 500px)); }
+}
+
+.raindrop {
+    position: absolute;
+    width: 2px;
+    height: 28px;
+    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.7));
+    border-radius: 1px;
+    animation: rainFall linear infinite;
+}
+
+@keyframes rainFall {
+    0% { transform: translate3d(0, -60px, 0); }
+    100% { transform: translate3d(-30px, 105vh, 0); }
+}
+
+.star {
+    position: absolute;
+    background: #ffffff;
+    border-radius: 50%;
+    animation: starBlink 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes starBlink {
+    0% { opacity: 0.2; transform: scale(0.7); }
+    100% { opacity: 1; transform: scale(1.25); }
+}
+</style>
+</head>
+
+<body>
+
+<div id="weatherBackground"></div>
+<div class="overlay"></div>
+
+<div class="dashboard">
+
+    <!-- 上方：時間面板 -->
+    <section class="clock-panel">
+        <div id="time" class="clock">--:--</div>
+        <div id="date" class="date">載入日期中...</div>
+    </section>
+
+    <!-- 下方：實時氣象卡片與折線圖 -->
+    <section class="weather-panel">
+        
+        <div class="location-tag">
+            <span>📍</span> 日出康城 (將軍澳氣象站)
+        </div>
+
+        <div class="weather-main-row">
+            <div class="weather-icon-wrap">
+                <img id="weatherIconImg" 
+                     class="weather-icon-img" 
+                     referrerpolicy="no-referrer"
+                     src="https://www.hko.gov.hk/images/wxicon/pic52.png" 
+                     alt="天氣圖標">
+                <div id="weatherEmoji" class="weather-emoji">⛅</div>
+            </div>
+            <!-- 保留一位小數 -->
+            <div id="temp" class="temperature">--.-°C</div>
+        </div>
+
+        <div class="weather-stats">
+            <div id="humidity" class="stat-pill">RH --%</div>
+            <div id="minmax" class="stat-pill">↓--°C ↑--°C</div>
+        </div>
+
+        <div id="condition" class="condition">正在同步日出康城最新天氣...</div>
+
+        <!-- 未來 8 小時氣溫趨勢折線圖 -->
+        <div class="hourly-card">
+            <div class="hourly-header">
+                <span>未來 8 小時氣溫趨勢</span>
+                <span id="chartDateTag">--月--日</span>
+            </div>
+            <svg id="hourlyChart" class="chart-svg" viewBox="0 0 760 110"></svg>
+        </div>
+
+    </section>
+
+</div>
+
+<script>
+/* ===================
+   時鐘邏輯
+=================== */
+function updateClock(){
+    const now = new Date();
+    document.getElementById("time").textContent = now.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    document.getElementById("date").textContent = now.toLocaleDateString("zh-HK", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long"
+    });
+
+    document.getElementById("chartDateTag").textContent = now.toLocaleDateString("zh-HK", {
+        month: "numeric",
+        day: "numeric",
+        weekday: "narrow"
+    });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+/* ===================
+   香港天文台 API 對接 (精確鎖定日出康城 / 將軍澳)
+=================== */
+const HKO_RHRREAD_URL = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc";
+const HKO_FND_URL     = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc";
+
+async function fetchHKOWeather(){
+    try {
+        const cacheBuster = `&_t=${Date.now()}`;
+        
+        const [rhrRes, fndRes] = await Promise.all([
+            fetch(HKO_RHRREAD_URL + cacheBuster),
+            fetch(HKO_FND_URL + cacheBuster)
+        ]);
+
+        const rhrData = await rhrRes.json();
+        const fndData = await fndRes.json();
+
+        // 1. 氣溫：優先讀取將軍澳（日出康城所在氣象站）數據，並強制保留一位小數 (.toFixed(1))
+        const lohasStation = rhrData.temperature?.data?.find(st => st.place.includes("將軍澳") || st.place.includes("康城"))
+                          || rhrData.temperature?.data?.find(st => st.place === "香港天文台")
+                          || rhrData.temperature?.data?.[0];
+
+        let currentTemperature = 24.8;
+        if(lohasStation && lohasStation.value !== undefined){
+            currentTemperature = parseFloat(lohasStation.value);
+            document.getElementById("temp").textContent = `${currentTemperature.toFixed(1)}°C`;
+        }
+
+        // 2. 相對濕度
+        const humidityData = rhrData.humidity?.data?.[0];
+        if(humidityData){
+            document.getElementById("humidity").textContent = `RH ${humidityData.value}%`;
+        }
+
+        // 3. 今日預測最高/最低溫度
+        let minT = 23, maxT = 28;
+        const todayForecast = fndData.weatherForecast?.[0];
+        if(todayForecast){
+            minT = parseInt(todayForecast.forecastMintemp?.value) || minT;
+            maxT = parseInt(todayForecast.forecastMaxtemp?.value) || maxT;
+            document.getElementById("minmax").textContent = `↓${minT}°C ↑${maxT}°C`;
+            document.getElementById("condition").textContent = todayForecast.forecastWeather || "間中有陽光";
+        }
+
+        // 4. 天氣圖標與主題背景聯動
+        const iconCode = rhrData.icon?.[0] || 52;
+        loadWeatherIcon(iconCode);
+        updateWeatherTheme(iconCode);
+
+        // 5. 渲染未來 8 小時氣溫折線圖
+        await renderHourlyForecast(currentTemperature, minT, maxT);
+
+    } catch (err) {
+        console.error("更新天文台數據失敗:", err);
+    }
+}
+
+function loadWeatherIcon(iconCode){
+    const iconImg = document.getElementById("weatherIconImg");
+    const emojiEl = document.getElementById("weatherEmoji");
+
+    iconImg.style.display = "block";
+    emojiEl.style.display = "none";
+
+    iconImg.src = `https://www.hko.gov.hk/images/wxicon/pic${iconCode}.png`;
+    
+    iconImg.onerror = function(){
+        if (!this.dataset.retried) {
+            this.dataset.retried = "true";
+            this.src = `https://rss.weather.gov.hk/img/pic${iconCode}.png`;
+        } else {
+            this.style.display = "none";
+            emojiEl.textContent = getEmojiFallback(iconCode);
+            emojiEl.style.display = "block";
+        }
+    };
+}
+
+function getEmojiFallback(iconCode){
+    if (iconCode >= 50 && iconCode <= 52) return "🌤️";
+    if (iconCode >= 53 && iconCode <= 54) return "☀️";
+    if (iconCode >= 60 && iconCode <= 61) return "☁️";
+    if (iconCode >= 62 && iconCode <= 64) return "🌧️";
+    if (iconCode === 65) return "⛈️";
+    if (iconCode >= 70 && iconCode <= 77) return "🌙";
+    return "⛅";
+}
+
+/* ===================
+   未來 8 小時氣溫折線圖 (SVG 向量渲染)
+=================== */
+async function renderHourlyForecast(currentTemp, minT, maxT){
+    const now = new Date();
+    const currentHour = now.getHours();
+    let hourlyList = [];
+
+    // 嘗試調用開放預報數據 (日出康城座標: 緯度 22.296, 經度 114.271)
+    try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=22.296&longitude=114.271&hourly=temperature_2m&timezone=Asia%2FHong_Kong`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if(data && data.hourly && data.hourly.time){
+            const times = data.hourly.time;
+            const temps = data.hourly.temperature_2m;
+            
+            // 尋找當前或下一個小時的起始索引
+            const currentISO = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}T${String(currentHour).padStart(2,'0')}:00`;
+            let startIndex = times.indexOf(currentISO);
+            if(startIndex === -1) startIndex = currentHour;
+
+            // 抓取接下來 8 個小時
+            for(let i = 0; i < 8; i++){
+                const idx = startIndex + i;
+                if(idx < times.length){
+                    const hourStr = times[idx].split("T")[1];
+                    hourlyList.push({
+                        time: hourStr,
+                        temp: Math.round(temps[idx])
+                    });
+                }
+            }
+        }
+    } catch(e) {
+        console.warn("使用天文台當日溫差模型進行平滑估算:", e);
+    }
+
+    // 若網絡不穩則以天文台日溫模型自動補齊，保證永遠不留白
+    if(hourlyList.length < 8){
+        hourlyList = [];
+        for(let i = 1; i <= 8; i++){
+            const targetH = (currentHour + i) % 24;
+            // 香港典型日溫曲線：14:00 氣溫最高，06:00 氣溫最低
+            const rad = ((targetH - 6) / 12) * Math.PI;
+            const factor = Math.max(0, Math.min(1, (Math.sin(rad - Math.PI/2) + 1) / 2));
+            const estTemp = Math.round(minT + (maxT - minT) * factor);
+            hourlyList.push({
+                time: `${String(targetH).padStart(2, '0')}:00`,
+                temp: estTemp
+            });
+        }
+    }
+
+    drawSVGChart(hourlyList);
+}
+
+function drawSVGChart(data){
+    const svg = document.getElementById("hourlyChart");
+    svg.innerHTML = "";
+
+    const width = 760;
+    const height = 110;
+    const paddingX = 45;
+    const paddingYTop = 30;
+    const paddingYBottom = 34;
+
+    const temps = data.map(d => d.temp);
+    const minVal = Math.min(...temps) - 1;
+    const maxVal = Math.max(...temps) + 1;
+    const range = (maxVal - minVal) || 2;
+
+    const stepX = (width - paddingX * 2) / (data.length - 1);
+    const points = data.map((d, i) => {
+        const x = paddingX + i * stepX;
+        const y = height - paddingYBottom - ((d.temp - minVal) / range) * (height - paddingYTop - paddingYBottom);
+        return { x, y, temp: d.temp, time: d.time };
+    });
+
+    // 1. 折線路徑 (帶平滑微曲線)
+    let pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        const cpX1 = prev.x + (curr.x - prev.x) / 2;
+        const cpX2 = curr.x - (curr.x - prev.x) / 2;
+        pathD += ` C ${cpX1} ${prev.y}, ${cpX2} ${curr.y}, ${curr.x} ${curr.y}`;
+    }
+
+    // 2. 漸變陰影區塊
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML = `
+        <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0"/>
+        </linearGradient>
+    `;
+    svg.appendChild(defs);
+
+    const areaD = `${pathD} L ${points[points.length-1].x} ${height - 24} L ${points[0].x} ${height - 24} Z`;
+    const areaPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    areaPath.setAttribute("d", areaD);
+    areaPath.setAttribute("fill", "url(#chartGradient)");
+    svg.appendChild(areaPath);
+
+    // 3. 折線本體
+    const linePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    linePath.setAttribute("d", pathD);
+    linePath.setAttribute("fill", "none");
+    linePath.setAttribute("stroke", "#38bdf8");
+    linePath.setAttribute("stroke-width", "3.5");
+    linePath.setAttribute("stroke-linecap", "round");
+    svg.appendChild(linePath);
+
+    // 4. 節點圓點、溫度數值與時間標籤
+    points.forEach((pt) => {
+        // 外圈光暈
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", pt.x);
+        circle.setAttribute("cy", pt.y);
+        circle.setAttribute("r", "4.5");
+        circle.setAttribute("fill", "#ffffff");
+        circle.setAttribute("stroke", "#0284c7");
+        circle.setAttribute("stroke-width", "2.5");
+        svg.appendChild(circle);
+
+        // 溫度標籤
+        const tempText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tempText.setAttribute("x", pt.x);
+        tempText.setAttribute("y", pt.y - 10);
+        tempText.setAttribute("text-anchor", "middle");
+        tempText.setAttribute("fill", "#ffffff");
+        tempText.setAttribute("font-size", "15px");
+        tempText.setAttribute("font-weight", "600");
+        tempText.textContent = `${pt.temp}°C`;
+        svg.appendChild(tempText);
+
+        // 時間標籤
+        const timeText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        timeText.setAttribute("x", pt.x);
+        timeText.setAttribute("y", height - 6);
+        timeText.setAttribute("text-anchor", "middle");
+        timeText.setAttribute("fill", "rgba(255, 255, 255, 0.75)");
+        timeText.setAttribute("font-size", "13.5px");
+        timeText.setAttribute("font-weight", "500");
+        timeText.textContent = pt.time;
+        svg.appendChild(timeText);
+    });
+}
+
+/* ===================
+   動態背景主題管理
+=================== */
+let lightningTimer = null;
+
+function updateWeatherTheme(iconCode){
+    if(iconCode >= 62 && iconCode <= 64){
+        setWeatherBackground("rain");
+    } else if(iconCode === 65){
+        setWeatherBackground("thunder");
+    } else if(iconCode >= 60 && iconCode <= 61){
+        setWeatherBackground("cloudy");
+    } else if(iconCode >= 70 && iconCode <= 77){
+        setWeatherBackground("night");
+    } else {
+        setWeatherBackground("sunny");
+    }
+}
+
+function setWeatherBackground(type){
+    const bg = document.getElementById("weatherBackground");
+    bg.innerHTML = "";
+    if(lightningTimer) { clearInterval(lightningTimer); lightningTimer = null; }
+
+    switch(type){
+        case "sunny":
+            document.body.style.background = "linear-gradient(180deg, #134e8d, #09264c)";
+            createSunGlow();
+            createClouds(2);
+            break;
+        case "cloudy":
+            document.body.style.background = "linear-gradient(180deg, #2b3e50, #141f29)";
+            createClouds(4);
+            break;
+        case "rain":
+            document.body.style.background = "linear-gradient(180deg, #1b2838, #0b1118)";
+            createClouds(3);
+            createRain(55);
+            break;
+        case "thunder":
+            document.body.style.background = "linear-gradient(180deg, #121820, #05070a)";
+            createClouds(3);
+            createRain(70);
+            startLightning();
+            break;
+        case "night":
+            document.body.style.background = "linear-gradient(180deg, #040d1a, #01050b)";
+            createStars(35);
+            createClouds(2);
+            break;
+    }
+}
+
+function createSunGlow(){
+    const bg = document.getElementById("weatherBackground");
+    const sun = document.createElement("div");
+    sun.className = "sun-glow";
+    bg.appendChild(sun);
+}
+
+function createClouds(count){
+    const bg = document.getElementById("weatherBackground");
+    for(let i = 0; i < count; i++){
+        const cloud = document.createElement("div");
+        cloud.className = "cloud";
+        cloud.style.top = (10 + i * 20) + "%";
+        cloud.style.animationDelay = `-${i * 25}s`;
+        bg.appendChild(cloud);
+    }
+}
+
+function createRain(amount){
+    const bg = document.getElementById("weatherBackground");
+    for(let i = 0; i < amount; i++){
+        const drop = document.createElement("div");
+        drop.className = "raindrop";
+        drop.style.left = Math.random() * 105 + "vw";
+        drop.style.animationDuration = (0.7 + Math.random() * 0.5) + "s";
+        drop.style.animationDelay = -(Math.random() * 2) + "s";
+        drop.style.opacity = (0.3 + Math.random() * 0.7);
+        bg.appendChild(drop);
+    }
+}
+
+function createStars(amount){
+    const bg = document.getElementById("weatherBackground");
+    for(let i = 0; i < amount; i++){
+        const star = document.createElement("div");
+        star.className = "star";
+        const size = (1.5 + Math.random() * 2.5);
+        star.style.width = size + "px";
+        star.style.height = size + "px";
+        star.style.left = Math.random() * 100 + "vw";
+        star.style.top = Math.random() * 60 + "vh";
+        star.style.animationDelay = (Math.random() * 3) + "s";
+        bg.appendChild(star);
+    }
+}
+
+function startLightning(){
+    lightningTimer =
