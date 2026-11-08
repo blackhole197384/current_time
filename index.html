@@ -370,7 +370,8 @@ function pad2(n) {
 function updateClock() {
     try {
         var now = new Date();
-        var h = pad2(now.getHours());
+        var h12 = now.getHours() % 12 || 12;
+        var h = h12;
         var m = pad2(now.getMinutes());
         var timeEl = document.getElementById("time");
         if (timeEl) timeEl.textContent = h + ":" + m;
