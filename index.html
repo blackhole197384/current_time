@@ -154,7 +154,7 @@ const iconRain = [
 ];
 
 // ==========================================
-// 4. 高清晰中文字點陣光柵器
+// 4. iPad 專屬高清晰中文字點陣光柵器 (解決斷劃、缺筆)
 // ==========================================
 const textMatrixCache = {};
 
@@ -163,7 +163,8 @@ function rasterizeTextToMatrix(key, text) {
     const off = document.createElement('canvas');
     const octx = off.getContext('2d', { willReadFrequently: true });
     
-    const fontStr = "normal 14px -apple-system, 'PingFang HK', 'Noto Sans TC', 'Heiti TC', sans-serif";
+    // 採用 Medium (500) 配合蘋方，確保單像素細筆劃具備足夠的骨架深度
+    const fontStr = "500 14px -apple-system, 'PingFang HK', 'Noto Sans TC', sans-serif";
     octx.font = fontStr;
     const textWidth = Math.ceil(octx.measureText(text).width);
     
@@ -175,8 +176,8 @@ function rasterizeTextToMatrix(key, text) {
     
     octx.font = fontStr;
     octx.fillStyle = "#ffffff";
-    octx.textBaseline = "middle";
-    octx.fillText(text, 2, 7);
+    octx.textBaseline = "top"; // 頂部絕對對齊，消除垂直像素抖動
+    octx.fillText(text, 2, 0);
     
     const imgData = octx.getImageData(0, 0, off.width, off.height);
     const dots = [];
@@ -184,7 +185,9 @@ function rasterizeTextToMatrix(key, text) {
         dots[x] = [];
         for (let y = 0; y < off.height; y++) {
             const idx = (y * off.width + x) * 4;
-            dots[x][y] = imgData.data[idx] > 145 ? 1 : 0;
+            // 閥值精確校準至 78：
+            // 既能保留「台」的橫畫、「陳」的直豎，又絕不膨脹黏連
+            dots[x][y] = imgData.data[idx] > 78 ? 1 : 0;
         }
     }
     
@@ -196,7 +199,7 @@ function rasterizeTextToMatrix(key, text) {
 }
 
 // ==========================================
-// 5. 即時資料同步 (天氣、修正後的港鐵班次、4大新聞)
+// 5. 即時資料同步 (天氣、港鐵、4大新聞源)
 // ==========================================
 let weatherTemp = "--";
 let weatherHum = "--";
@@ -234,7 +237,6 @@ async function fetchWeather() {
     } catch(e) { console.warn("天氣同步異常:", e); }
 }
 
-// 修正港鐵離站數據：康城往市區方向為 DOWN 方向
 async function fetchMTRSchedule() {
     try {
         const res = await fetch("https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TKL&sta=LHP");
@@ -242,7 +244,6 @@ async function fetchMTRSchedule() {
         
         if (json.status === 1 && json.data && json.data["TKL-LHP"]) {
             const lhp = json.data["TKL-LHP"];
-            // 優先取得 DOWN (往北角/調景嶺)，並排除抵達終點的車次
             let rawList = (lhp.DOWN || []).concat(lhp.UP || []);
             let departures = rawList.filter(t => t.dest !== 'LHP');
             
@@ -253,7 +254,6 @@ async function fetchMTRSchedule() {
                 const parts = next3.map(t => {
                     const dest = destNames[t.dest] || t.dest || '北角';
                     let mins = t.ttnt;
-                    // Safari 相容處理 (時間格式以斜線取代破折號)
                     if (mins === undefined || mins === null || isNaN(mins)) {
                         const safeTimeStr = (t.time || '').replace(/-/g, '/');
                         mins = Math.max(0, Math.round((new Date(safeTimeStr) - new Date()) / 60000));
@@ -424,14 +424,14 @@ function animate() {
     dateWidth--;
     drawMiniText(dateStr, Math.floor((COLS - dateWidth) / 2), 2, '#888888');
     
-    // 2. 超大時鐘 (第 10 至 26 列，與日期保持 3 行空白留白)
+    // 2. 超大時鐘 (第 10 至 26 列，與日期保留 3 行完整留白)
     const timeStr = (now.getHours() % 12 || 12) + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
     let totalClockWidth = 0;
     for (let char of timeStr) if (hugeFont[char]) totalClockWidth += hugeFont[char][0].length + 2;
     totalClockWidth -= 2;
     drawHugeText(timeStr, Math.floor((COLS - totalClockWidth) / 2), 10, currentColor);
     
-    // 3. 下半部輪播
+    // 3. 下半部 4 階段輪播 (第 31 至 45 列)
     const cycleTime = (Date.now() / 1000) % TOTAL_CYCLE;
     let currentPhase = 0;
     
