@@ -8,6 +8,15 @@
 <title>Tidbyt Style Matrix Panel 64x48</title>
 
 <style>
+    /* 引入剛上傳的 16px 香港繁體比例點陣字型 */
+    @font-face {
+        font-family: 'ArkPixel16';
+        src: url('ark-pixel-16px-proportional-zh_hk.ttf.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+        font-display: block;
+    }
+
     * {
         margin: 0;
         padding: 0;
@@ -15,24 +24,27 @@
     }
 
     html, body {
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
         background-color: #000000;
         overflow: hidden;
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 1cm;
+        /* 移除外邊框留白，全螢幕填滿 */
+        padding: 0;
+        margin: 0;
         user-select: none;
         -webkit-user-select: none;
     }
     
     canvas {
         display: block;
-        width: 100%;
-        height: 100%;
-        max-width: calc(100vw - 2cm);
-        max-height: calc(100vh - 2cm);
+        width: 100vw;
+        height: 100vh;
+        max-width: 100%;
+        max-height: 100%;
+        /* 嚴格對應 iPad Pro 9.7 的 4:3 比例 (2048x1536) */
         aspect-ratio: 4 / 3;
         object-fit: contain;
         filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25));
@@ -45,20 +57,21 @@
 
 <script>
 // ==========================================
-// 1. iPad 4:3 專屬網格配置 (64x48, 2048x1536)
+// 1. iPad 4:3 滿版原生網格 (64x48, 2048x1536)
 // ==========================================
 const COLS = 64;
 const ROWS = 48; 
 const canvas = document.getElementById('matrixCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 
-const CELL_SIZE = 32; 
-const DOT_SIZE = 24;  
-const DOT_GAP = 8;    
+const CELL_SIZE = 32; // 2048 / 64 = 32px，1536 / 48 = 32px
+const DOT_SIZE = 24;  // 24px LED 圓點
+const DOT_GAP = 8;    // 8px 間距
 
-canvas.width = COLS * CELL_SIZE;  
-canvas.height = ROWS * CELL_SIZE; 
+canvas.width = COLS * CELL_SIZE;  // 2048 px
+canvas.height = ROWS * CELL_SIZE; // 1536 px
 
+// 離線預製點陣底板
 const backplate = document.createElement('canvas');
 backplate.width = canvas.width;
 backplate.height = canvas.height;
@@ -79,7 +92,7 @@ for (let r = 0; r < ROWS; r++) {
 }
 
 // ==========================================
-// 2. 超大時鐘與天氣專用字庫
+// 2. 超大時鐘與數字字庫
 // ==========================================
 const hugeFont = {
     '0': ['011111110','111111111','111000111','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','110000011','111000111','111111111','011111110'],
@@ -96,65 +109,37 @@ const hugeFont = {
 };
 
 const miniFont = {
-    '0': ['111','101','101','101','111'],
-    '1': ['010','110','010','010','111'],
-    '2': ['111','001','111','100','111'],
-    '3': ['111','001','111','001','111'],
-    '4': ['101','101','111','001','001'],
-    '5': ['111','100','111','001','111'],
-    '6': ['111','100','111','101','111'],
-    '7': ['111','001','010','100','100'],
-    '8': ['111','101','111','101','111'],
-    '9': ['111','101','111','001','111'],
-    'C': ['111','100','100','100','111'],
-    '%': ['11001','11010','00100','01011','10011'],
-    '-': ['000','000','111','000','000'],
-    '.': ['00','00','00','00','11'],
-    ' ': ['00','00','00','00','00'],
-    '°': ['111','101','111','000','000'],
-    'S': ['111','100','111','001','111'],
-    'U': ['101','101','101','101','111'],
-    'N': ['1001','1101','1011','1001','1001'],
-    'M': ['10001','11011','10101','10001','10001'],
-    'T': ['111','010','010','010','010'],
-    'W': ['10001','10001','10101','11011','10001'],
-    'F': ['111','100','110','100','100'],
-    'H': ['101','101','111','101','101'],
-    'A': ['111','101','111','101','101'],
-    'P': ['111','101','111','100','100'],
+    '0': ['111','101','101','101','111'], '1': ['010','110','010','010','111'],
+    '2': ['111','001','111','100','111'], '3': ['111','001','111','001','111'],
+    '4': ['101','101','111','001','001'], '5': ['111','100','111','001','111'],
+    '6': ['111','100','111','101','111'], '7': ['111','001','010','100','100'],
+    '8': ['111','101','111','101','111'], '9': ['111','101','111','001','111'],
+    'C': ['111','100','100','100','111'], '%': ['11001','11010','00100','01011','10011'],
+    '-': ['000','000','111','000','000'], '.': ['00','00','00','00','11'],
+    ' ': ['00','00','00','00','00'],      '°': ['111','101','111','000','000'],
+    'S': ['111','100','111','001','111'], 'U': ['101','101','101','101','111'],
+    'N': ['1001','1101','1011','1001','1001'], 'M': ['10001','11011','10101','10001','10001'],
+    'T': ['111','010','010','010','010'], 'W': ['10001','10001','10101','11011','10001'],
+    'F': ['111','100','110','100','100'], 'H': ['101','101','111','101','101'],
+    'A': ['111','101','111','101','101'], 'P': ['111','101','111','100','100'],
     'R': ['111','101','110','101','101']
 };
 
 const hourColors = ['#FF0000','#FF7F00','#FFD700','#7FFF00','#00FF00','#00FF7F','#00FFFF','#007FFF','#0000FF','#7F00FF','#FF00FF','#FF007F'];
 
-// ==========================================
-// 3. 吃豆人與天氣精靈圖標
-// ==========================================
 const pacmanMini = [
     ['001111000','011111100','111111110','111111111','111110000','111111111','111111110','011111100','001111000'],
     ['001111000','011111100','111111110','111111111','111111111','111111111','111111110','011111100','001111000']
 ];
 const ghostMini = ['001111100','011111110','112212211','113213211','111111111','111111111','111111111','111111111','101010101'];
 
-const iconSunny = [
-    '00000100000','00100100100','00010001000','01001110010','00011111000',
-    '11011111011','00011111000','01001110010','00010001000','00100100100','00000100000'
-];
-const iconCloudy = [
-    '00000000000','00000222000','00002222200','00022222220','00222222220',
-    '02222222222','02222222222','00222222200','00000000000','00000000000','00000000000'
-];
-const iconPartlyCloudy = [
-    '00000100000','00100101000','00011110000','01011111000','00011222000',
-    '00022222200','00222222220','02222222222','02222222222','00222222200','00000000000'
-];
-const iconRain = [
-    '00002220000','00022222000','00222222220','02222222222','02222222222',
-    '00222222200','00030030000','00300300300','00030030000','00300003000','00000000000'
-];
+const iconSunny = ['00000100000','00100100100','00010001000','01001110010','00011111000','11011111011','00011111000','01001110010','00010001000','00100100100','00000100000'];
+const iconCloudy = ['00000000000','00000222000','00002222200','00022222220','00222222220','02222222222','02222222222','00222222200','00000000000','00000000000','00000000000'];
+const iconPartlyCloudy = ['00000100000','00100101000','00011110000','01011111000','00011222000','00022222200','00222222220','02222222222','02222222222','00222222200','00000000000'];
+const iconRain = ['00002220000','00022222000','00222222220','02222222222','02222222222','00222222200','00030030000','00300300300','00030030000','00300003000','00000000000'];
 
 // ==========================================
-// 4. iPad 專屬高清晰中文字點陣光柵器 (解決斷劃、缺筆)
+// 3. 16px 點陣字型專用光柵化渲染器
 // ==========================================
 const textMatrixCache = {};
 
@@ -163,21 +148,21 @@ function rasterizeTextToMatrix(key, text) {
     const off = document.createElement('canvas');
     const octx = off.getContext('2d', { willReadFrequently: true });
     
-    // 採用 Medium (500) 配合蘋方，確保單像素細筆劃具備足夠的骨架深度
-    const fontStr = "500 14px -apple-system, 'PingFang HK', 'Noto Sans TC', sans-serif";
+    // 使用上傳的 16px 點陣字型
+    const fontStr = "16px 'ArkPixel16', sans-serif";
     octx.font = fontStr;
     const textWidth = Math.ceil(octx.measureText(text).width);
     
-    off.width = textWidth + 10;
-    off.height = 15; 
+    off.width = textWidth + 8;
+    off.height = 16; // 16 點陣完整高度
     
     octx.fillStyle = "#000000";
     octx.fillRect(0, 0, off.width, off.height);
     
     octx.font = fontStr;
     octx.fillStyle = "#ffffff";
-    octx.textBaseline = "top"; // 頂部絕對對齊，消除垂直像素抖動
-    octx.fillText(text, 2, 0);
+    octx.textBaseline = "top";
+    octx.fillText(text, 0, 0);
     
     const imgData = octx.getImageData(0, 0, off.width, off.height);
     const dots = [];
@@ -185,21 +170,28 @@ function rasterizeTextToMatrix(key, text) {
         dots[x] = [];
         for (let y = 0; y < off.height; y++) {
             const idx = (y * off.width + x) * 4;
-            // 閥值精確校準至 78：
-            // 既能保留「台」的橫畫、「陳」的直豎，又絕不膨脹黏連
-            dots[x][y] = imgData.data[idx] > 78 ? 1 : 0;
+            // 像素字型原生 1:1 對齊，閥值設 80
+            dots[x][y] = imgData.data[idx] > 80 ? 1 : 0;
         }
     }
     
     textMatrixCache[key] = {
         width: off.width,
-        height: 15,
+        height: 16,
         dots: dots
     };
 }
 
+// 監聽字型非同步載入，字型一就緒立即自動重繪
+if (document.fonts) {
+    document.fonts.ready.then(function() {
+        if (mtrRawText) rasterizeTextToMatrix('mtr', mtrRawText);
+        if (newsHeadlinePool.length > 0) renderActiveHeadline();
+    });
+}
+
 // ==========================================
-// 5. 即時資料同步 (天氣、港鐵、4大新聞源)
+// 4. 即時資料同步
 // ==========================================
 let weatherTemp = "--";
 let weatherHum = "--";
@@ -209,7 +201,7 @@ let mtrRawText = "康城往北角: 正在連線中...";
 const NEWS_SOURCES = [
     { label: "港台", url: "https://rthk9.rthk.hk/rthk/news/rss/c_expressnews_clocal.xml" },
     { label: "Yahoo", url: "https://hk.news.yahoo.com/rss/hong-kong" },
-    { label: "政府新聞", url: "https://www.news.gov.hk/rss/tc.xml" },
+    { label: "政府", url: "https://www.news.gov.hk/rss/tc.xml" },
     { label: "SCMP", url: "https://www.scmp.com/rss" }
 ];
 
@@ -234,7 +226,7 @@ async function fetchWeather() {
         } else if (hkoData?.humidity?.data) {
             weatherHum = hkoData.humidity.data[0].value;
         }
-    } catch(e) { console.warn("天氣同步異常:", e); }
+    } catch(e) {}
 }
 
 async function fetchMTRSchedule() {
@@ -260,7 +252,7 @@ async function fetchMTRSchedule() {
                     } else {
                         mins = parseInt(mins, 10);
                     }
-                    const minStr = (mins === 0) ? "即將開出" : `${mins}分鐘`;
+                    const minStr = (mins === 0) ? "即將開出" : `${mins}分`;
                     return `${dest} ${minStr}`;
                 });
                 
@@ -270,7 +262,7 @@ async function fetchMTRSchedule() {
             }
             rasterizeTextToMatrix('mtr', mtrRawText);
         }
-    } catch(e) { console.warn("港鐵同步異常:", e); }
+    } catch(e) {}
 }
 
 async function fetchHKNews() {
@@ -298,9 +290,6 @@ async function fetchHKNews() {
     if (collectedHeadlines.length > 0) {
         newsHeadlinePool = collectedHeadlines;
         renderActiveHeadline();
-    } else if (newsHeadlinePool.length === 0) {
-        newsHeadlinePool = ["天氣警報: 今日香港無特別警告信號。"];
-        renderActiveHeadline();
     }
 }
 
@@ -327,7 +316,7 @@ function getIconSprite() {
 }
 
 // ==========================================
-// 6. 點陣繪製方法
+// 5. 點陣繪圖方法
 // ==========================================
 function drawLitDot(col, row, color) {
     if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
@@ -342,9 +331,7 @@ function drawLitDot(col, row, color) {
 function drawSprite(sprite, startX, startY, colorMap) {
     for (let r = 0; r < sprite.length; r++) {
         for (let c = 0; c < sprite[r].length; c++) {
-            if (sprite[r][c] !== '0') {
-                drawLitDot(Math.floor(startX + c), startY + r, colorMap[sprite[r][c]] || '#FFFFFF');
-            }
+            if (sprite[r][c] !== '0') drawLitDot(Math.floor(startX + c), startY + r, colorMap[sprite[r][c]] || '#FFFFFF');
         }
     }
 }
@@ -354,7 +341,6 @@ function drawHugeText(text, startX, startY, color) {
     for (let i = 0; i < text.length; i++) {
         let charData = hugeFont[text[i]];
         if (!charData) { currX += 4; continue; }
-        
         for (let r = 0; r < charData.length; r++) {
             for (let c = 0; c < charData[r].length; c++) {
                 if (charData[r][c] === '1') drawLitDot(currX + c, startY + r, color);
@@ -387,16 +373,14 @@ function drawRasterText(key, scrollX, startY, color) {
         let srcX = c - startCol;
         if (srcX >= 0 && srcX < cached.width) {
             for (let r = 0; r < cached.height; r++) {
-                if (cached.dots[srcX][r] === 1) {
-                    drawLitDot(c, startY + r, color);
-                }
+                if (cached.dots[srcX][r] === 1) drawLitDot(c, startY + r, color);
             }
         }
     }
 }
 
 // ==========================================
-// 7. 主渲染迴圈
+// 6. 主渲染迴圈
 // ==========================================
 const DURATION_PACMAN  = 20; 
 const DURATION_WEATHER = 60;
@@ -413,7 +397,7 @@ function animate() {
     const currentColor = hourColors[now.getHours() % 12];
     canvas.style.filter = `drop-shadow(0 0 12px ${currentColor}45)`;
     
-    // 1. 日期 (第 2 至 6 列)
+    // 頂部日期 (第 2 至 6 列)
     const month = (now.getMonth() + 1 < 10 ? '0' : '') + (now.getMonth() + 1);
     const day = (now.getDate() < 10 ? '0' : '') + now.getDate();
     const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -424,14 +408,14 @@ function animate() {
     dateWidth--;
     drawMiniText(dateStr, Math.floor((COLS - dateWidth) / 2), 2, '#888888');
     
-    // 2. 超大時鐘 (第 10 至 26 列，與日期保留 3 行完整留白)
+    // 超大時鐘 (第 10 至 26 列)
     const timeStr = (now.getHours() % 12 || 12) + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
     let totalClockWidth = 0;
     for (let char of timeStr) if (hugeFont[char]) totalClockWidth += hugeFont[char][0].length + 2;
     totalClockWidth -= 2;
     drawHugeText(timeStr, Math.floor((COLS - totalClockWidth) / 2), 10, currentColor);
     
-    // 3. 下半部 4 階段輪播 (第 31 至 45 列)
+    // 下半部 4 階段輪播
     const cycleTime = (Date.now() / 1000) % TOTAL_CYCLE;
     let currentPhase = 0;
     
@@ -460,10 +444,8 @@ function animate() {
         
         drawSprite(getIconSprite(), startX, 33, { '1': '#FFD700', '2': '#FFFFFF', '3': '#00BFFF' });
         startX += 11 + GAP;
-        
         startX = drawMiniText(tStr, startX, 36, '#FFFFFF');
         startX += GAP;
-        
         drawMiniText(hStr, startX, 36, '#00BFFF');
         
     } else if (cycleTime < DURATION_PACMAN + DURATION_WEATHER + DURATION_MTR) {
@@ -474,6 +456,7 @@ function animate() {
         const progress = phaseElapsed / DURATION_MTR;
         const scrollX = 64 - progress * (textW + 64);
         
+        // 16 點陣完整展現於第 31 列 (佔用 31 至 46 列)
         drawRasterText('mtr', scrollX, 31, '#00F0FF');
         
     } else {
@@ -489,6 +472,7 @@ function animate() {
         const progress = phaseElapsed / DURATION_NEWS;
         const scrollX = 64 - progress * (textW + 64);
         
+        // 16 點陣完整展現於第 31 列 (佔用 31 至 46 列)
         drawRasterText('news', scrollX, 31, '#FFB703');
     }
     
