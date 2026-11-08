@@ -8,7 +8,7 @@
 <title>Tidbyt Style Matrix Panel 64x48</title>
 
 <style>
-    /* 引入剛上傳的 16px 香港繁體比例點陣字型 */
+    /* 引用同目錄下的 16px 香港繁體像素字型 */
     @font-face {
         font-family: 'ArkPixel16';
         src: url('ark-pixel-16px-proportional-zh_hk.ttf.woff2') format('woff2');
@@ -31,7 +31,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        /* 移除外邊框留白，全螢幕填滿 */
+        /* 完全滿版，不留外圍白邊 */
         padding: 0;
         margin: 0;
         user-select: none;
@@ -139,7 +139,7 @@ const iconPartlyCloudy = ['00000100000','00100101000','00011110000','01011111000
 const iconRain = ['00002220000','00022222000','00222222220','02222222222','02222222222','00222222200','00030030000','00300300300','00030030000','00300003000','00000000000'];
 
 // ==========================================
-// 3. 16px 點陣字型專用光柵化渲染器
+// 3. 專用 16px 點陣光柵器 (解決字底裁切問題)
 // ==========================================
 const textMatrixCache = {};
 
@@ -148,13 +148,13 @@ function rasterizeTextToMatrix(key, text) {
     const off = document.createElement('canvas');
     const octx = off.getContext('2d', { willReadFrequently: true });
     
-    // 使用上傳的 16px 點陣字型
     const fontStr = "16px 'ArkPixel16', sans-serif";
     octx.font = fontStr;
     const textWidth = Math.ceil(octx.measureText(text).width);
     
-    off.width = textWidth + 8;
-    off.height = 16; // 16 點陣完整高度
+    // 【關鍵修正 1】：將高度設為 24（預留足夠繪圖空間，防止字形底部被裁切）
+    off.width = textWidth + 12;
+    off.height = 24; 
     
     octx.fillStyle = "#000000";
     octx.fillRect(0, 0, off.width, off.height);
@@ -162,27 +162,46 @@ function rasterizeTextToMatrix(key, text) {
     octx.font = fontStr;
     octx.fillStyle = "#ffffff";
     octx.textBaseline = "top";
-    octx.fillText(text, 0, 0);
+    // 從 y = 2 開始繪製，給予適當頂部緩衝
+    octx.fillText(text, 2, 2);
     
     const imgData = octx.getImageData(0, 0, off.width, off.height);
+    
+    // 【關鍵修正 2】：自動掃描文字實際繪製的頂部，做精確 16 行對齊裁切
+    let firstActiveY = -1;
+    for (let y = 0; y < off.height; y++) {
+        for (let x = 0; x < off.width; x++) {
+            if (imgData.data[(y * off.width + x) * 4] > 60) {
+                firstActiveY = y;
+                break;
+            }
+        }
+        if (firstActiveY !== -1) break;
+    }
+    if (firstActiveY === -1) firstActiveY = 2;
+
+    const TARGET_HEIGHT = 16;
     const dots = [];
     for (let x = 0; x < off.width; x++) {
         dots[x] = [];
-        for (let y = 0; y < off.height; y++) {
-            const idx = (y * off.width + x) * 4;
-            // 像素字型原生 1:1 對齊，閥值設 80
-            dots[x][y] = imgData.data[idx] > 80 ? 1 : 0;
+        for (let r = 0; r < TARGET_HEIGHT; r++) {
+            const actualY = firstActiveY + r;
+            if (actualY < off.height) {
+                const idx = (actualY * off.width + x) * 4;
+                dots[x][r] = imgData.data[idx] > 60 ? 1 : 0;
+            } else {
+                dots[x][r] = 0;
+            }
         }
     }
     
     textMatrixCache[key] = {
         width: off.width,
-        height: 16,
+        height: TARGET_HEIGHT,
         dots: dots
     };
 }
 
-// 監聽字型非同步載入，字型一就緒立即自動重繪
 if (document.fonts) {
     document.fonts.ready.then(function() {
         if (mtrRawText) rasterizeTextToMatrix('mtr', mtrRawText);
@@ -415,7 +434,7 @@ function animate() {
     totalClockWidth -= 2;
     drawHugeText(timeStr, Math.floor((COLS - totalClockWidth) / 2), 10, currentColor);
     
-    // 下半部 4 階段輪播
+    // 下半部 4 階段輪播 (Rows 28 至 47)
     const cycleTime = (Date.now() / 1000) % TOTAL_CYCLE;
     let currentPhase = 0;
     
@@ -456,8 +475,8 @@ function animate() {
         const progress = phaseElapsed / DURATION_MTR;
         const scrollX = 64 - progress * (textW + 64);
         
-        // 16 點陣完整展現於第 31 列 (佔用 31 至 46 列)
-        drawRasterText('mtr', scrollX, 31, '#00F0FF');
+        // 【關鍵修正 3】：微調至 startY = 30，16 點陣字型剛好佔用 30 至 45 列，下留 2 行黑邊，全字筆劃 100% 呈現
+        drawRasterText('mtr', scrollX, 30, '#00F0FF');
         
     } else {
         currentPhase = 4;
@@ -472,8 +491,8 @@ function animate() {
         const progress = phaseElapsed / DURATION_NEWS;
         const scrollX = 64 - progress * (textW + 64);
         
-        // 16 點陣完整展現於第 31 列 (佔用 31 至 46 列)
-        drawRasterText('news', scrollX, 31, '#FFB703');
+        // 16 點陣字型座落於 30 至 45 列
+        drawRasterText('news', scrollX, 30, '#FFB703');
     }
     
     prevCyclePhase = currentPhase;
